@@ -25,14 +25,12 @@ public class Bag {
         this.tiles = tiles;
     }
 
-    public List<Tile> takeTiles(int amount) {
+    public Tile takeTiles() {
 
         if (tiles.isEmpty())
             return null;
 
-
-        return IntStream.range(0, amount).map(_ -> (new Random()).nextInt(tiles.size()))
-                .mapToObj(tiles::remove).collect(Collectors.toList());
+        return tiles.remove((new Random()).nextInt(tiles.size()));
     }
 
     public boolean isEmpty() {

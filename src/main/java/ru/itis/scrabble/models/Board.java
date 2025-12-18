@@ -13,20 +13,20 @@ package ru.itis.scrabble.models;
  * </ul>
  */
 public class Board {
-    private final BoardCell[][] cells;
+    private final BoardCell[][] boardCells;
 
-    public Board(BoardCell[][] cells) {
-        this.cells = cells;
+    public Board(BoardCell[][] boardCells) {
+        this.boardCells = boardCells;
     }
 
-    public BoardCell[][] getCells() {
-        return cells;
+    public BoardCell[][] getBoardCells() {
+        return boardCells;
     }
 
     public void setCell(int x, int y, Tile tile) {
-        if (cells[y][x].getTile() != null)
+        if (boardCells[y][x].getTile() != null)
             return;
 
-        cells[y][x].setTile(tile);
+        boardCells[y][x].setTile(tile);
     }
 }

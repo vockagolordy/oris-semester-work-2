@@ -24,12 +24,12 @@ public class Player {
 
     private int score;
 
-    private final List<Tile> availableTiles;
+    private final List<Tile> rack;
 
-    public Player(Long userId, int score, List<Tile> availableTiles) {
+    public Player(Long userId, int score, List<Tile> rack) {
         this.userId = userId;
         this.score = score;
-        this.availableTiles = availableTiles;
+        this.rack = rack;
     }
 
     public Long getUserId() {
@@ -44,15 +44,19 @@ public class Player {
         score += points;
     }
 
-    public List<Tile> getAvailableLetters() {
-        return availableTiles;
+    public boolean isConnected() {
+        return isConnected;
     }
 
-    public void addAvailableLetters(List<Tile> tiles) {
-        availableTiles.addAll(tiles);
+    public List<Tile> getRack() {
+        return rack;
     }
 
-    public void removeAvailableLetters(List<Tile> tiles) {
-        availableTiles.removeAll(tiles);
+    public void addTiles(List<Tile> tiles) {
+        rack.addAll(tiles);
+    }
+
+    public void removeTiles(List<Tile> tiles) {
+        rack.removeAll(tiles);
     }
 }

@@ -21,36 +21,22 @@ import java.util.List;
 public class Game {
     private final  List<Player> players;
 
-    private final Board board;
+    private int activePlayerIdx;
 
-    private final Bag bag;
-
-    private Long activePlayerId;
-
-    public Game(List<Player> players, Board board, Bag bag, Long activePlayerId) {
+    public Game(List<Player> players, int activePlayerIdx) {
         this.players = players;
-        this.board = board;
-        this.bag = bag;
-        this.activePlayerId = activePlayerId;
+        this.activePlayerIdx = activePlayerIdx;
     }
 
     public List<Player> getPlayers() {
         return players;
     }
 
-    public Board getBoard() {
-        return board;
+    public int getActivePlayerIdx() {
+        return activePlayerIdx;
     }
 
-    public Bag getBag() {
-        return bag;
-    }
-
-    public Long getActivePlayerId() {
-        return activePlayerId;
-    }
-
-    public void setActivePlayerId(Long activePlayerId) {
-        this.activePlayerId = activePlayerId;
+    public void setActivePlayerIdx(int activePlayerIdx) {
+        this.activePlayerIdx = activePlayerIdx;
     }
 }
