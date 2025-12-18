@@ -20,6 +20,8 @@ import java.util.List;
 public class Player {
     private final Long userId;
 
+    private boolean isConnected;
+
     private int score;
 
     private final List<Tile> availableTiles;

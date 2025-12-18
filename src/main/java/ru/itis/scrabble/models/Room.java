@@ -1,5 +1,6 @@
 package ru.itis.scrabble.models;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +20,13 @@ import java.util.List;
 public class Room {
     private final int port;
 
+    private Long hostId;
+
     private final List<Long> users;
+
+    private Game game;
+
+    private LocalDateTime expiresCountdown;
 
     public Room(int port) {
         this.port = port;
