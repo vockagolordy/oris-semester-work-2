@@ -1,12 +1,12 @@
-package ru.itis.scrabble.repositories;
+package ru.itis.scrabble.services;
 
 import ru.itis.scrabble.models.User;
 
-public interface UserRepository {
+public interface UserService {
 
-    User save(User user);
+    void updateStyles(Long userId, int styleId);
 
-    void update(User user);
+    void updateGames(Long userId, boolean isWin);
 
     void deleteById(Long id);
 
