@@ -1,4 +1,4 @@
-package ru.itis.scrabble.DTO;
+package ru.itis.scrabble.dto;
 
 import ru.itis.scrabble.models.Tile;
 

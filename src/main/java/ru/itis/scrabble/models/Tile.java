@@ -28,8 +28,6 @@ package ru.itis.scrabble.models;
  * </ul>
  */
 public enum Tile {
-    BLANK(0, '.'),
-
     A(1, 'A'),
     E(1, 'E'),
     I(1, 'I'),

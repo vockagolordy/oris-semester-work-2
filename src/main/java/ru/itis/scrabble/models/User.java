@@ -22,8 +22,6 @@ package ru.itis.scrabble.models;
 public class User {
     private Long id;
 
-    private String email;
-
     private String username;
 
     private String passwordHash;
@@ -46,9 +44,10 @@ public class User {
      */
     private int totalGames;
 
-    public User(Long id, String email, String username, String passwordHash, int totalWins, int totalLoses, int totalGames) {
+    private int styleId;
+
+    public User(Long id, String username, String passwordHash, int totalWins, int totalLoses, int totalGames) {
         this.id = id;
-        this.email = email;
         this.username = username;
         this.passwordHash = passwordHash;
         this.totalWins = totalWins;
@@ -56,9 +55,8 @@ public class User {
         this.totalGames = totalGames;
     }
 
-    public User(String email, String username, String passwordHash) {
+    public User(String username, String passwordHash) {
         this.id = null;
-        this.email = email;
         this.username = username;
         this.passwordHash = passwordHash;
         this.totalWins = 0;
@@ -72,14 +70,6 @@ public class User {
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
     }
 
     public String getUsername() {

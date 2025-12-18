@@ -36,4 +36,8 @@ public class Bag {
     public boolean isEmpty() {
         return tiles.isEmpty();
     }
+
+    public int getRemainingCount() {
+        return tiles.size();
+    }
 }

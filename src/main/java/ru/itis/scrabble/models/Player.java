@@ -1,5 +1,6 @@
 package ru.itis.scrabble.models;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -20,20 +21,27 @@ import java.util.List;
 public class Player {
     private final Long userId;
 
+    private final String username;
+
     private boolean isConnected;
 
     private int score;
 
     private final List<Tile> rack;
 
-    public Player(Long userId, int score, List<Tile> rack) {
+    public Player(Long userId, String username) {
         this.userId = userId;
-        this.score = score;
-        this.rack = rack;
+        this.username = username;
+        this.score = 0;
+        this.rack = new ArrayList<>();
     }
 
     public Long getUserId() {
         return userId;
+    }
+
+    public String getUsername() {
+        return username;
     }
 
     public int getScore() {
