@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox alignment="CENTER" spacing="20" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.itis.scrabble.client.visuals.WaitingRoomController">
+    <padding>
+        <Insets top="50" right="50" bottom="50" left="50"/>
+    </padding>
+
+    <Label text="Комната ожидания" style="-fx-text-fill: #2E8B57;">
+        <font>
+            <Font name="System Bold" size="28"/>
+        </font>
+    </Label>
+
+    <VBox spacing="15" alignment="CENTER" style="-fx-padding: 20; -fx-background-color: #F5F5F5; -fx-border-color: #DDD;">
+        <Label fx:id="roomInfoLabel" text="Комната порт: 8080" style="-fx-font-size: 16; -fx-font-weight: bold;"/>
+
+        <VBox spacing="10">
+            <Label text="Игроки в комнате:" style="-fx-font-weight: bold;"/>
+            <ListView fx:id="playersListView" prefHeight="100" prefWidth="300"/>
+        </VBox>
+
+        <HBox spacing="10" alignment="CENTER">
+            <Label fx:id="readyStatusLabel" text="Ожидание игроков..."/>
+        </HBox>
+
+        <HBox spacing="15" alignment="CENTER">
+            <Button fx:id="readyButton" text="Готов" style="-fx-background-color: #4CAF50; -fx-text-fill: white;" disabled="true"/>
+            <Button fx:id="startButton" text="Начать игру" style="-fx-background-color: #2196F3; -fx-text-fill: white;" disabled="true"/>
+            <Button fx:id="leaveButton" text="Покинуть комнату" style="-fx-background-color: #f44336; -fx-text-fill: white;"/>
+        </HBox>
+
+        <VBox fx:id="reconnectPanel" spacing="5" visible="false" style="-fx-padding: 10; -fx-background-color: #FFF3CD;">
+            <Label text="Обнаружена незавершенная игра" style="-fx-font-weight: bold;"/>
+            <Button fx:id="reconnectButton" text="Восстановить игру" style="-fx-background-color: #FFC107; -fx-text-fill: white;"/>
+        </VBox>
+    </VBox>
+
+    <Label fx:id="waitingTimerLabel" text="Таймер: 10:00" style="-fx-font-weight: bold;"/>
+</VBox>

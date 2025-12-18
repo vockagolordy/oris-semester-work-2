@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox alignment="CENTER" spacing="30" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.itis.scrabble.client.visuals.MainMenuController">
+    <padding>
+        <Insets top="50" right="50" bottom="50" left="50"/>
+    </padding>
+
+    <Label text="Главное меню" style="-fx-text-fill: #2E8B57;">
+        <font>
+            <Font name="System Bold" size="28"/>
+        </font>
+    </Label>
+
+    <VBox spacing="15" alignment="CENTER">
+        <Button fx:id="createRoomButton" text="Создать комнату" prefWidth="250" style="-fx-background-color: #4CAF50; -fx-text-fill: white;"/>
+        <Button fx:id="joinRoomButton" text="Присоединиться" prefWidth="250" style="-fx-background-color: #2196F3; -fx-text-fill: white;"/>
+        <Button fx:id="profileButton" text="Профиль" prefWidth="250" style="-fx-background-color: #FF9800; -fx-text-fill: white;"/>
+        <Button fx:id="statsButton" text="Статистика" prefWidth="250" style="-fx-background-color: #9C27B0; -fx-text-fill: white;"/>
+        <Button fx:id="logoutButton" text="Выйти" prefWidth="250" style="-fx-background-color: #f44336; -fx-text-fill: white;"/>
+    </VBox>
+
+    <Label fx:id="userInfoLabel" text="Пользователь: " style="-fx-text-fill: #666;"/>
+</VBox>
