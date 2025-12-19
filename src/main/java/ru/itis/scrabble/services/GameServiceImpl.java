@@ -2,121 +2,69 @@ package ru.itis.scrabble.services;
 
 import ru.itis.scrabble.dto.TilePlacementDTO;
 import ru.itis.scrabble.models.*;
+import ru.itis.scrabble.util.DictUtil;
+
+import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class GameServiceImpl implements GameService {
-    private final BagService bagService;
-    private final BoardService boardService;
-    private final ScoringService scoringService;
-    private Game game;
-    private final List<User> users;
-    private boolean gameStarted;
-    private int consecutiveSkips;
-    private static final int MAX_CONSECUTIVE_SKIPS = 3;
+    private Board board;
+    private Bag bag;
+    private Game currentGame;
+    private boolean gameFinished;
 
-    public GameServiceImpl(List<User> users) {
-        this.users = users;
-        this.bagService = new BagServiceImpl();
-        this.boardService = new BoardServiceImpl();
-        this.scoringService = new ScoringServiceImpl();
-        this.game = null;
-        this.gameStarted = false;
-        this.consecutiveSkips = 0;
-    }
+    // Таймеры ходов: userId -> время начала хода
+    private final Map<Long, LocalDateTime> turnTimers = new ConcurrentHashMap<>();
+    private static final int TURN_TIME_SECONDS = 90;
+    private static final int CONSECUTIVE_SKIPS_TO_END = 4;
 
-    private List<Player> createPlayers(List<User> users) {
-        List<Player> players = new ArrayList<>();
-        for (User user : users) {
-            players.add(new Player(user.getId(), user.getUsername()));
-        }
-        return players;
+    // Счетчики пропусков ходов: userId -> количество подряд пропущенных ходов
+    private final Map<Long, Integer> skipCounters = new ConcurrentHashMap<>();
+
+    // Предложения ничьей: roomPort -> {offererUserId, expiryTime}
+    private final Map<Integer, DrawOffer> drawOffers = new ConcurrentHashMap<>();
+
+    public GameServiceImpl() {
+        this.gameFinished = false;
     }
 
     @Override
     public void startGame() {
-        if (gameStarted) {
-            throw new IllegalStateException("Игра уже начата");
-        }
+        this.gameFinished = false;
+        this.skipCounters.clear();
+        this.turnTimers.clear();
+        this.drawOffers.clear();
 
-        // Создаем игроков
-        List<Player> players = createPlayers(users);
-
-        // Создаем игру
-        game = new Game(players, 0);
-
-        // Инициализируем мешок
-        bagService.fullBag();
-
-        // Создаем доску
-        boardService.createBoard();
-
-        // Раздаем начальные фишки игрокам (по 7 фишек каждому)
-        for (Player player : players) {
-            List<Tile> initialTiles = bagService.takeTiles(7);
-            player.addTiles(initialTiles);
-        }
-
-        gameStarted = true;
-        consecutiveSkips = 0;
-
+        System.out.println("Новая игра начата");
     }
 
     @Override
     public void endGame() {
-        if (!gameStarted) {
-            throw new IllegalStateException("Игра не начата");
-        }
+        this.gameFinished = true;
+        this.skipCounters.clear();
+        this.turnTimers.clear();
+        this.drawOffers.clear();
 
-        // Подсчитываем финальные очки
-        calculateFinalScores();
-
-        // Определяем победителя
-        Player winner = determineWinner();
-
-        // Обновляем статистику пользователей
-        updateUserStats(winner);
-
-        // Сбрасываем состояние
-        game = null;
-        gameStarted = false;
-        consecutiveSkips = 0;
-
+        System.out.println("Игра завершена");
     }
 
     @Override
     public boolean isValidTilePosition(TilePlacementDTO tilePlacementDTO) {
-        if (!gameStarted || game == null) {
+        // Базовая проверка
+        if (tilePlacementDTO == null || tilePlacementDTO.tile() == null) {
             return false;
         }
 
-        // Проверяем через BoardService
-        return boardService.isValidTilePosition(tilePlacementDTO);
-    }
-
-    @Override
-    public boolean skipTurn() {
-        if (!gameStarted || game == null) {
-            return false;
-        }
-
-        // Увеличиваем счетчик пропущенных ходов
-        consecutiveSkips++;
-
-        // Передаем ход следующему игроку
-        passTurnToNextPlayer();
-
-        // Проверяем, не пора ли завершить игру
-        if (consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
-            endGame();
-            return true;
-        }
+        // Проверка границ будет в BoardService
+        // Здесь можно добавить дополнительные проверки
 
         return true;
     }
 
     @Override
-    public boolean makeMove(List<TilePlacementDTO> tilePlacements) {
-        if (!gameStarted || game == null) {
+    public boolean skipTurn() {
+        if (currentGame == null || gameFinished) {
             return false;
         }
 
@@ -125,187 +73,414 @@ public class GameServiceImpl implements GameService {
             return false;
         }
 
-        // Проверяем валидность всех позиций
-        for (TilePlacementDTO placement : tilePlacements) {
-            if (!boardService.isValidTilePosition(placement)) {
-                System.out.println("Невалидная позиция: " + placement.x() + "," + placement.y());
-                return false;
-            }
+        Long userId = currentPlayer.getUserId();
 
-            // Проверяем, что у игрока есть эта фишка
-            if (!playerHasTile(currentPlayer, placement.tile())) {
-                System.out.println("У игрока нет фишки: " + placement.tile());
-                return false;
+        // Увеличиваем счетчик пропусков
+        int skips = skipCounters.getOrDefault(userId, 0) + 1;
+        skipCounters.put(userId, skips);
+
+        // Сбрасываем счетчик для других игроков
+        for (Player player : currentGame.getPlayers()) {
+            if (!player.getUserId().equals(userId)) {
+                skipCounters.put(player.getUserId(), 0);
             }
         }
 
-        // Проверяем правила размещения (все фишки на одной линии)
-        if (!isValidPlacement(tilePlacements)) {
-            System.out.println("Фишки размещены не по правилам");
+        System.out.println("Игрок " + userId + " пропустил ход. Пропусков подряд: " + skips);
+        return true;
+    }
+
+    @Override
+    public boolean makeMove(List<TilePlacementDTO> placements) {
+        if (currentGame == null || gameFinished || placements == null || placements.isEmpty()) {
             return false;
         }
 
-//        // Проверяем, что первое слово проходит через центр
-//        if (boardService.isFirstMove() && !isCrossingCenter(tilePlacements)) {
-//            System.out.println("Первое слово должно проходить через центр");
-//            return false;
-//        }
-//
-//        // Проверяем, что фишки соприкасаются с существующими (если это не первый ход)
-//        if (!boardService.isFirstMove() && !isTouchingExistingTiles(tilePlacements)) {
-//            System.out.println("Фишки должны соприкасаться с существующими");
-//            return false;
-//        }
-
-        // Получаем текущую доску
-        Board board = boardService.getBoard();
-        if (board == null) {
+        // Проверяем, что все фишки есть у текущего игрока
+        Player currentPlayer = getCurrentPlayer();
+        if (currentPlayer == null) {
             return false;
         }
 
-        // Подсчитываем очки (передаем Board в ScoringService)
-        int score = scoringService.countScore(board, tilePlacements);
-
-        // Размещаем фишки на доске
-        for (TilePlacementDTO placement : tilePlacements) {
-            boardService.placeTile(placement);
+        // Проверяем, что все размещаемые фишки есть у игрока
+        List<Tile> playerTiles = new ArrayList<>(currentPlayer.getRack());
+        for (TilePlacementDTO placement : placements) {
+            Tile tile = placement.tile();
+            if (!playerTiles.contains(tile)) {
+                System.out.println("У игрока нет фишки: " + tile.getLetter());
+                return false;
+            }
+            playerTiles.remove(tile);
         }
 
-        // Убираем использованные фишки у игрока
-        removeTilesFromPlayer(currentPlayer, tilePlacements);
-
-        // Добавляем очки игроку
-        currentPlayer.increaseScore(score);
-
-        // Добираем новые фишки игроку
-        List<Tile> newTiles = bagService.takeTiles(tilePlacements.size());
-        currentPlayer.addTiles(newTiles);
-
-        // Сбрасываем счетчик пропусков
-        consecutiveSkips = 0;
-
-        // Передаем ход следующему игроку
-        passTurnToNextPlayer();
-
-        System.out.println("Ход выполнен. Очков заработано: " + score);
-
-        // Проверяем, не закончилась ли игра
-        if (isGameFinished()) {
-            endGame();
+        // Проверяем, что фишки образуют одно слово (горизонтально или вертикально)
+        if (!isSingleWord(placements)) {
+            System.out.println("Фишки не образуют одно слово");
+            return false;
         }
 
+        // Проверяем, что слово существует в словаре
+        String formedWord = getFormedWord(placements);
+        if (!DictUtil.isValidWord(formedWord)) {
+            System.out.println("Слово не найдено в словаре: " + formedWord);
+            return false;
+        }
+
+        // Проверяем, что это первый ход и проходит через центр
+        if (isFirstMove() && !isThroughCenter(placements)) {
+            System.out.println("Первый ход должен проходить через центр");
+            return false;
+        }
+
+        // Проверяем, что все клетки между фишками заполнены
+        if (!isContinuous(placements)) {
+            System.out.println("Фишки должны быть размещены непрерывно");
+            return false;
+        }
+
+        // Проверяем, что нет пересечений с существующими словами
+        if (hasIntersections(placements)) {
+            System.out.println("Запрещены пересечения с существующими словами");
+            return false;
+        }
+
+        // Все проверки пройдены
         return true;
     }
 
     @Override
     public boolean isBagEmpty() {
-        return bagService.isEmpty();
+        return bag != null && bag.isEmpty();
     }
 
     @Override
     public Board getBoard() {
-        return boardService.getBoard();
+        return board;
     }
 
     @Override
     public boolean isGameFinished() {
-        if (!gameStarted || game == null) {
-            return false;
+        if (gameFinished) {
+            return true;
         }
 
-        // Игра заканчивается, если:
-        // 1. Мешок пуст и один из игроков использовал все фишки
-        // 2. Игроки пропустили ход MAX_CONSECUTIVE_SKIPS раз подряд
+        // Проверяем условия окончания игры
 
-        if (bagService.isEmpty()) {
-            for (Player player : game.getPlayers()) {
-                if (player.getRack().isEmpty()) {
-                    return true;
+        // 1. Мешок пуст и оба игрока сделали по 4 пропуска подряд
+        if (isBagEmpty()) {
+            boolean allSkippedEnough = true;
+            for (Player player : currentGame.getPlayers()) {
+                int skips = skipCounters.getOrDefault(player.getUserId(), 0);
+                if (skips < CONSECUTIVE_SKIPS_TO_END) {
+                    allSkippedEnough = false;
+                    break;
                 }
+            }
+            if (allSkippedEnough) {
+                System.out.println("Игра завершена: мешок пуст и все игроки пропустили по 4 хода");
+                return true;
             }
         }
 
-        return consecutiveSkips >= MAX_CONSECUTIVE_SKIPS;
-    }
-
-    // Вспомогательные методы
-
-    private Player getCurrentPlayer() {
-        if (game == null) return null;
-        int idx = game.getActivePlayerIdx();
-        if (idx >= 0 && idx < game.getPlayers().size()) {
-            return game.getPlayers().get(idx);
+        // 2. У какого-то игрока закончились фишки
+        for (Player player : currentGame.getPlayers()) {
+            if (player.getRack().isEmpty()) {
+                System.out.println("Игра завершена: у игрока " + player.getUserId() + " закончились фишки");
+                return true;
+            }
         }
-        return null;
+
+        return false;
     }
 
-    private void passTurnToNextPlayer() {
-        if (game == null) return;
+    // === Дополнительные методы для интеграции с NetworkServer ===
 
-        int currentIdx = game.getActivePlayerIdx();
-        int nextIdx = (currentIdx + 1) % game.getPlayers().size();
-        game.setActivePlayerIdx(nextIdx);
+    public void setCurrentGame(Game game) {
+        this.currentGame = game;
     }
 
-    private boolean playerHasTile(Player player, Tile tile) {
-        return player.getRack().contains(tile);
+    public void setBoard(Board board) {
+        this.board = board;
     }
 
-    private void removeTilesFromPlayer(Player player, List<TilePlacementDTO> placements) {
-        List<Tile> tilesToRemove = new ArrayList<>();
-        for (TilePlacementDTO placement : placements) {
-            tilesToRemove.add(placement.tile());
+    public void setBag(Bag bag) {
+        this.bag = bag;
+    }
+
+    public Player getCurrentPlayer() {
+        if (currentGame == null || currentGame.getPlayers().isEmpty()) {
+            return null;
         }
-        player.removeTiles(tilesToRemove);
+
+        int activeIndex = currentGame.getActivePlayerIdx();
+        if (activeIndex < 0 || activeIndex >= currentGame.getPlayers().size()) {
+            return null;
+        }
+
+        return currentGame.getPlayers().get(activeIndex);
     }
 
-    private boolean isValidPlacement(List<TilePlacementDTO> placements) {
-        if (placements.isEmpty()) return false;
+    public void startTurnTimer(Long userId) {
+        turnTimers.put(userId, LocalDateTime.now());
+    }
 
-        // Проверяем, что все фишки на одной горизонтальной или вертикальной линии
+    public boolean isTurnTimeExpired(Long userId) {
+        LocalDateTime startTime = turnTimers.get(userId);
+        if (startTime == null) {
+            return false;
+        }
+
+        long secondsElapsed = java.time.Duration.between(startTime, LocalDateTime.now()).getSeconds();
+        return secondsElapsed >= TURN_TIME_SECONDS;
+    }
+
+    public void checkTurnTimers(Room room) {
+        if (room == null || !room.isGameStarted() || room.getGame() == null) {
+            return;
+        }
+
+        Game game = room.getGame();
+        Player currentPlayer = game.getPlayers().get(game.getActivePlayerIdx());
+
+        if (currentPlayer != null && isTurnTimeExpired(currentPlayer.getUserId())) {
+            System.out.println("Время хода истекло для игрока " + currentPlayer.getUserId());
+            // Автоматически пропускаем ход
+            skipTurn();
+            // Передаем ход следующему игроку
+            game.setActivePlayerIdx((game.getActivePlayerIdx() + 1) % game.getPlayers().size());
+        }
+    }
+
+    public void processDrawOffer(Room room, Long offererId) {
+        if (room == null) {
+            return;
+        }
+
+        DrawOffer offer = new DrawOffer(offererId, LocalDateTime.now().plusSeconds(30));
+        drawOffers.put(room.getPort(), offer);
+
+        System.out.println("Игрок " + offererId + " предложил ничью в комнате " + room.getPort());
+    }
+
+    public boolean acceptDrawOffer(Room room, Long acceptorId) {
+        if (room == null) {
+            return false;
+        }
+
+        DrawOffer offer = drawOffers.get(room.getPort());
+        if (offer == null || offer.isExpired()) {
+            return false;
+        }
+
+        // Проверяем, что принимает не тот же игрок
+        if (offer.offererId.equals(acceptorId)) {
+            return false;
+        }
+
+        // Проверяем, что принимающий игрок находится в комнате
+        if (!room.containsUser(acceptorId)) {
+            return false;
+        }
+
+        System.out.println("Ничья принята в комнате " + room.getPort());
+        drawOffers.remove(room.getPort());
+        return true;
+    }
+
+    public void processMove(Room room, Long playerId, List<TilePlacementDTO> placements, int score) {
+        if (room == null || room.getGame() == null) {
+            return;
+        }
+
+        // Находим игрока и начисляем очки
+        for (Player player : room.getGame().getPlayers()) {
+            if (player.getUserId().equals(playerId)) {
+                player.increaseScore(score);
+
+                // Удаляем использованные фишки
+                List<Tile> usedTiles = new ArrayList<>();
+                for (TilePlacementDTO placement : placements) {
+                    usedTiles.add(placement.tile());
+                }
+                player.removeTiles(usedTiles);
+
+                // Добираем новые фишки
+                if (bag != null && !bag.isEmpty()) {
+                    int tilesToTake = Math.min(7 - player.getRack().size(), placements.size());
+                    if (tilesToTake > 0) {
+                        List<Tile> newTiles = new ArrayList<>();
+                        for (int i = 0; i < tilesToTake; i++) {
+                            Tile tile = bag.takeTiles();
+                            if (tile != null) {
+                                newTiles.add(tile);
+                            }
+                        }
+                        player.addTiles(newTiles);
+                    }
+                }
+
+                // Сбрасываем счетчик пропусков
+                skipCounters.put(playerId, 0);
+
+                System.out.println("Ход обработан для игрока " + playerId +
+                        ", очки: " + score + ", новый счет: " + player.getScore());
+                break;
+            }
+        }
+    }
+
+    public String serializeGameState(Room room) {
+        if (room == null) {
+            return "EMPTY";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("PORT:").append(room.getPort()).append(";");
+        sb.append("GAME_STARTED:").append(room.isGameStarted()).append(";");
+
+        if (room.isGameStarted() && room.getGame() != null) {
+            Game game = room.getGame();
+            sb.append("ACTIVE_PLAYER:").append(game.getActivePlayerIdx()).append(";");
+            sb.append("PLAYERS:[");
+
+            for (int i = 0; i < game.getPlayers().size(); i++) {
+                Player player = game.getPlayers().get(i);
+                if (i > 0) sb.append(",");
+                sb.append("{ID:").append(player.getUserId())
+                        .append(",SCORE:").append(player.getScore())
+                        .append(",TILES:").append(player.getRack().size())
+                        .append("}");
+            }
+            sb.append("]");
+        }
+
+        return sb.toString();
+    }
+
+    public void endGameInRoom(Room room) {
+        if (room != null) {
+            room.setGameStarted(false);
+            endGame();
+        }
+    }
+
+    public String getGameResults(Room room) {
+        if (room == null || room.getGame() == null) {
+            return "NO_GAME";
+        }
+
+        List<Player> players = room.getGame().getPlayers();
+        if (players.size() != 2) {
+            return "INVALID_PLAYER_COUNT";
+        }
+
+        Player player1 = players.get(0);
+        Player player2 = players.get(1);
+
+        // Определяем победителя
+        if (player1.getScore() > player2.getScore()) {
+            return "WINNER:" + player1.getUserId() +
+                    "|SCORE1:" + player1.getScore() +
+                    "|SCORE2:" + player2.getScore();
+        } else if (player2.getScore() > player1.getScore()) {
+            return "WINNER:" + player2.getUserId() +
+                    "|SCORE1:" + player1.getScore() +
+                    "|SCORE2:" + player2.getScore();
+        } else {
+            return "DRAW|SCORE1:" + player1.getScore() + "|SCORE2:" + player2.getScore();
+        }
+    }
+
+    // === Вспомогательные методы для проверки ходов ===
+
+    private boolean isFirstMove() {
+        // Проверяем, пустое ли поле (первый ход)
+        if (board == null) {
+            return true;
+        }
+
+        BoardCell[][] cells = board.getBoardCells();
+        for (int i = 0; i < cells.length; i++) {
+            for (int j = 0; j < cells[i].length; j++) {
+                if (cells[i][j].getTile() != null) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean isSingleWord(List<TilePlacementDTO> placements) {
+        if (placements.size() <= 1) {
+            return true;
+        }
+
+        // Проверяем, все ли фишки на одной линии (горизонтально или вертикально)
         boolean sameRow = true;
-        boolean sameColumn = true;
+        boolean sameCol = true;
 
         int firstRow = placements.get(0).y();
-        int firstColumn = placements.get(0).x();
+        int firstCol = placements.get(0).x();
 
         for (TilePlacementDTO placement : placements) {
             if (placement.y() != firstRow) {
                 sameRow = false;
             }
-            if (placement.x() != firstColumn) {
-                sameColumn = false;
+            if (placement.x() != firstCol) {
+                sameCol = false;
             }
         }
 
-        // Если не все на одной линии, проверяем смежные позиции
-        if (!sameRow && !sameColumn) {
-            return false;
+        return sameRow || sameCol;
+    }
+
+    private boolean isThroughCenter(List<TilePlacementDTO> placements) {
+        int center = 7; // Для поля 15x15 центр на (7,7)
+
+        for (TilePlacementDTO placement : placements) {
+            if (placement.x() == center && placement.y() == center) {
+                return true;
+            }
         }
 
-        // Если на одной линии, проверяем что нет пропусков
-        if (sameRow) {
-            List<Integer> columns = new ArrayList<>();
-            for (TilePlacementDTO placement : placements) {
-                columns.add(placement.x());
-            }
-            Collections.sort(columns);
+        return false;
+    }
 
-            for (int i = 1; i < columns.size(); i++) {
-                if (columns.get(i) - columns.get(i - 1) > 1) {
-                    return false; // Есть пропуски
+    private boolean isContinuous(List<TilePlacementDTO> placements) {
+        if (placements.size() <= 1) {
+            return true;
+        }
+
+        // Сортируем по координатам
+        List<TilePlacementDTO> sorted = new ArrayList<>(placements);
+        sorted.sort((a, b) -> {
+            if (a.y() != b.y()) {
+                return Integer.compare(a.y(), b.y());
+            }
+            return Integer.compare(a.x(), b.x());
+        });
+
+        // Проверяем непрерывность
+        for (int i = 1; i < sorted.size(); i++) {
+            TilePlacementDTO prev = sorted.get(i - 1);
+            TilePlacementDTO curr = sorted.get(i);
+
+            // Проверяем горизонтальную непрерывность
+            if (prev.y() == curr.y() && curr.x() - prev.x() > 1) {
+                // Проверяем, заполнены ли промежуточные клетки
+                for (int x = prev.x() + 1; x < curr.x(); x++) {
+                    if (getTileAt(x, prev.y()) == null) {
+                        return false;
+                    }
                 }
             }
-        } else { // sameColumn
-            List<Integer> rows = new ArrayList<>();
-            for (TilePlacementDTO placement : placements) {
-                rows.add(placement.y());
-            }
-            Collections.sort(rows);
-
-            for (int i = 1; i < rows.size(); i++) {
-                if (rows.get(i) - rows.get(i - 1) > 1) {
-                    return false; // Есть пропуски
+            // Проверяем вертикальную непрерывность
+            else if (prev.x() == curr.x() && curr.y() - prev.y() > 1) {
+                // Проверяем, заполнены ли промежуточные клетки
+                for (int y = prev.y() + 1; y < curr.y(); y++) {
+                    if (getTileAt(prev.x(), y) == null) {
+                        return false;
+                    }
                 }
             }
         }
@@ -313,82 +488,65 @@ public class GameServiceImpl implements GameService {
         return true;
     }
 
-    private boolean isCrossingCenter(List<TilePlacementDTO> placements) {
-        int center = 7; // BOARD_SIZE / 2
-        for (TilePlacementDTO placement : placements) {
-            if (placement.x() == center && placement.y() == center) {
-                return true;
-            }
-        }
+    private boolean hasIntersections(List<TilePlacementDTO> placements) {
+        // В текущей реализации запрещаем любые пересечения
+        // Можно расширить для поддержки классических правил Scrabble
         return false;
     }
 
-    private boolean isTouchingExistingTiles(List<TilePlacementDTO> placements) {
-        // Проверяем, что хотя бы одна фишка соприкасается с существующей
-        for (TilePlacementDTO placement : placements) {
-            int x = placement.x();
-            int y = placement.y();
-
-            // Проверяем соседние клетки
-            if (boardService.getTileAt(x-1, y) != null ||
-                boardService.getTileAt(x+1, y) != null ||
-                boardService.getTileAt(x, y-1) != null ||
-                boardService.getTileAt(x, y+1) != null) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void calculateFinalScores() {
-        if (game == null) return;
-    }
-
-    private Player determineWinner() {
-        if (game == null) return null;
-
-        Player winner = null;
-        int maxScore = Integer.MIN_VALUE;
-
-        for (Player player : game.getPlayers()) {
-            if (player.getScore() > maxScore) {
-                maxScore = player.getScore();
-                winner = player;
-            }
+    private String getFormedWord(List<TilePlacementDTO> placements) {
+        if (placements.isEmpty()) {
+            return "";
         }
 
-        return winner;
+        StringBuilder word = new StringBuilder();
+
+        // Сортируем фишки в порядке их расположения в слове
+        List<TilePlacementDTO> sorted = new ArrayList<>(placements);
+        boolean isHorizontal = true;
+
+        if (placements.size() > 1) {
+            isHorizontal = placements.get(0).y() == placements.get(1).y();
+        }
+
+        if (isHorizontal) {
+            sorted.sort(Comparator.comparingInt(TilePlacementDTO::x));
+        } else {
+            sorted.sort(Comparator.comparingInt(TilePlacementDTO::y));
+        }
+
+        for (TilePlacementDTO placement : sorted) {
+            word.append(placement.tile().getLetter());
+        }
+
+        return word.toString();
     }
 
-    private void updateUserStats(Player winner) {
-        // Здесь должна быть логика обновления статистики пользователей в БД
-        // Пока просто выводим в консоль
-        System.out.println("Победитель: игрок с ID " + (winner != null ? winner.getUserId() : "не определен"));
+    private Tile getTileAt(int x, int y) {
+        if (board == null) {
+            return null;
+        }
 
-        // В реальной реализации:
-        // 1. Найти User по winner.getUserId()
-        // 2. Вызвать user.addWin()
-        // 3. Для проигравших: user.addLose()
-        // 4. Сохранить в репозитории
+        BoardCell[][] cells = board.getBoardCells();
+        if (y < 0 || y >= cells.length || x < 0 || x >= cells[y].length) {
+            return null;
+        }
+
+        return cells[y][x].getTile();
     }
 
-    // Дополнительные методы для удобства
+    // Внутренний класс для предложений ничьей
+    private static class DrawOffer {
+        final Long offererId;
+        final LocalDateTime expiryTime;
 
-    public Player getCurrentPlayerInfo() {
-        return getCurrentPlayer();
-    }
+        DrawOffer(Long offererId, LocalDateTime expiryTime) {
+            this.offererId = offererId;
+            this.expiryTime = expiryTime;
+        }
 
-    public List<Player> getAllPlayers() {
-        return game != null ? game.getPlayers() : Collections.emptyList();
-    }
-
-    public boolean isGameStarted() {
-        return gameStarted;
-    }
-
-    public int getRemainingTilesCount() {
-        // В реальной реализации нужно получить из BagService
-        // Пока возвращаем примерное значение
-        return bagService.isEmpty() ? 0 : 50;
+        boolean isExpired() {
+            return LocalDateTime.now().isAfter(expiryTime);
+        }
     }
 }

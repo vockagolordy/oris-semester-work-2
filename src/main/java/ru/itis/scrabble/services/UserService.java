@@ -1,20 +1,17 @@
 package ru.itis.scrabble.services;
 
 import ru.itis.scrabble.models.User;
+import java.util.List;
 
 public interface UserService {
-
-    void updateStyles(Long userId, int styleId);
-
+    User register(String username, String passwordHash);
+    User login(String username, String passwordHash);
+    User findById(Long id);
+    User findByUsername(String username);
     void updateGames(Long userId, boolean isWin);
 
-    void deleteById(Long id);
-
-    User findById(Long id);
-
-    User findByUsername(String username);
-
-    boolean existsById(Long id);
-
-    boolean existsByUsername(String username);
+    void updateStyle(Long userId, int styleId);
+    int getCurrentStyle(Long userId);
+    List<Integer> getAvailableStyles();
+    boolean isStyleAvailable(int styleId);
 }
