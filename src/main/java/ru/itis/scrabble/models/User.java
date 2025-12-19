@@ -17,33 +17,16 @@ package ru.itis.scrabble.models;
  *     <li>{@code totalWins} - количество выигранных игр</li>
  *     <li>{@code totalLoses} - количество проигранных игр</li>
  *     <li>{@code totalGames} - количество всех игр</li>
+ *     <li>{@code styleId} - идентификатор стиля оформления</li>
  * </ul>
  */
 public class User {
     private Long id;
-
     private String username;
-
     private String passwordHash;
-
-    /**
-     * <b>Нет сеттера.</b>
-     * Увеличивается методом {@link #addWin()} после завершения игры.
-     */
     private int totalWins;
-
-    /**
-     * <b>Нет сеттера.</b>
-     * Увеличивается методом {@link #addLose()} после завершения игры.
-     */
     private int totalLoses;
-
-    /**
-     * <b>Нет сеттера.</b>
-     * Увеличивается вместе с методами {@link #addWin()}, {@link #addLose()}.
-     */
     private int totalGames;
-
     private int styleId;
 
     public User(Long id, String username, String passwordHash, int totalWins, int totalLoses, int totalGames) {
@@ -53,6 +36,7 @@ public class User {
         this.totalWins = totalWins;
         this.totalLoses = totalLoses;
         this.totalGames = totalGames;
+        this.styleId = 1;
     }
 
     public User(String username, String passwordHash) {
@@ -62,38 +46,51 @@ public class User {
         this.totalWins = 0;
         this.totalLoses = 0;
         this.totalGames = 0;
+        this.styleId = 1; // Дефолтный стиль
     }
 
     public Long getId() {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
     public String getUsername() {
         return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
     }
 
     public String getPasswordHash() {
         return passwordHash;
     }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
-    }
-
     public int getTotalWins() {
         return totalWins;
     }
 
+    public int getTotalLoses() {
+        return totalLoses;
+    }
+
+    public int getTotalGames() {
+        return totalGames;
+    }
+
     public int getStyleId() {
         return styleId;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public void setStyleId(int styleId) {
+        this.styleId = styleId;
     }
 
     public void addWin() {
@@ -101,16 +98,8 @@ public class User {
         totalGames += 1;
     }
 
-    public int getTotalLoses() {
-        return totalLoses;
-    }
-
     public void addLose() {
         totalLoses += 1;
         totalGames += 1;
-    }
-
-    public int getTotalGames() {
-        return totalGames;
     }
 }
