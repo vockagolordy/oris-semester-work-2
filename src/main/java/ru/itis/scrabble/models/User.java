@@ -92,6 +92,10 @@ public class User {
         return totalWins;
     }
 
+    public int getStyleId() {
+        return styleId;
+    }
+
     public void addWin() {
         totalWins += 1;
         totalGames += 1;
