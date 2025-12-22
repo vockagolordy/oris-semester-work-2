@@ -31,8 +31,8 @@
         </HBox>
 
         <HBox spacing="15" alignment="CENTER">
-            <Button fx:id="readyButton" text="Готов" style="-fx-background-color: #4CAF50; -fx-text-fill: white;" disabled="true"/>
-            <Button fx:id="startButton" text="Начать игру" style="-fx-background-color: #2196F3; -fx-text-fill: white;" disabled="true"/>
+            <Button fx:id="readyButton" text="Готов" style="-fx-background-color: #4CAF50; -fx-text-fill: white;" disable="true"/>
+            <Button fx:id="startButton" text="Начать игру" style="-fx-background-color: #2196F3; -fx-text-fill: white;" disable="true"/>
             <Button fx:id="leaveButton" text="Покинуть комнату" style="-fx-background-color: #f44336; -fx-text-fill: white;"/>
         </HBox>
 
