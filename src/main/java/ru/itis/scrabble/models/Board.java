@@ -29,4 +29,13 @@ public class Board {
 
         boardCells[y][x].setTile(tile);
     }
+
+    public boolean isEmpty() {
+        for (BoardCell[] row : boardCells) {
+            for (BoardCell cell : row) {
+                if (cell.getTile() != null) return false;
+            }
+        }
+        return true;
+    }
 }

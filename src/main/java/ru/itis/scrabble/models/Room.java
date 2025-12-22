@@ -7,35 +7,34 @@ import java.util.List;
 /**
  * Модель игровой комнаты.
  * <p>
- * Только данные, без бизнес-логики.
- * Вся логика должна быть в соответствующих сервисах.
+ * Управляет состоянием лобби и хранит активную игровую сессию (GameSession).
  * </p>
  */
 public class Room {
     private final int port;
     private Long hostId;
-    private final List<Long> users;
-    private Game game;
 
-    // Только временные метки для сервисов
+    private final List<Long> userIds;
+
+    private GameSession gameSession;
+
     private LocalDateTime createdAt;
     private LocalDateTime lastActivity;
 
-    // Флаги состояния (сервисы используют эти флаги)
     private boolean gameStarted;
     private boolean hasActiveDrawOffer;
     private LocalDateTime drawOfferExpiry;
 
     public Room(int port) {
         this.port = port;
-        this.users = new ArrayList<>();
+        this.userIds = new ArrayList<>();
         this.createdAt = LocalDateTime.now();
         this.lastActivity = LocalDateTime.now();
         this.gameStarted = false;
         this.hasActiveDrawOffer = false;
     }
 
-
+    // === Геттеры и сеттеры ===
 
     public int getPort() {
         return port;
@@ -50,16 +49,26 @@ public class Room {
         updateActivity();
     }
 
-    public List<Long> getUsers() {
-        return new ArrayList<>(users);
+    /**
+     * Возвращает ID пользователей, подключенных к комнате.
+     */
+    public List<Long> getUserIds() {
+        return new ArrayList<>(userIds);
     }
 
-    public Game getGame() {
-        return game;
+    /**
+     * Получение текущей активной сессии игры.
+     */
+    public GameSession getGameSession() {
+        return gameSession;
     }
 
-    public void setGame(Game game) {
-        this.game = game;
+    /**
+     * Установка новой игровой сессии (вызывается GameSessionService при старте).
+     */
+    public void setGameSession(GameSession gameSession) {
+        this.gameSession = gameSession;
+        this.gameStarted = (gameSession != null);
         updateActivity();
     }
 
@@ -84,6 +93,8 @@ public class Room {
         updateActivity();
     }
 
+    // === Управление состоянием ничьей ===
+
     public boolean isHasActiveDrawOffer() {
         return hasActiveDrawOffer;
     }
@@ -100,45 +111,47 @@ public class Room {
         this.drawOfferExpiry = drawOfferExpiry;
     }
 
-    // === Простые операции с коллекциями ===
+    // === Операции с пользователями ===
 
     public void addUser(Long userId) {
-        if (!users.contains(userId)) {
-            users.add(userId);
+        if (!userIds.contains(userId)) {
+            userIds.add(userId);
+            if (hostId == null) hostId = userId; // Первый зашедший становится хостом
             updateActivity();
         }
     }
 
     public void removeUser(Long userId) {
-        users.remove(userId);
+        userIds.remove(userId);
+        if (userId.equals(hostId)) {
+            hostId = userIds.isEmpty() ? null : userIds.get(0); // Передача хоста
+        }
         updateActivity();
     }
 
     public boolean containsUser(Long userId) {
-        return users.contains(userId);
+        return userIds.contains(userId);
     }
 
     public boolean isFull() {
-        return users.size() >= 2;
+        return userIds.size() >= 2;
     }
 
     public boolean isEmpty() {
-        return users.isEmpty();
+        return userIds.isEmpty();
     }
 
     public int getUserCount() {
-        return users.size();
+        return userIds.size();
     }
 
-    // Вспомогательный метод для сетевого слоя
+    /**
+     * Поиск оппонента. Используется для уведомлений и preview-пакетов.
+     */
     public Long getOpponentId(Long userId) {
-        if (users.size() != 2) return null;
-
-        for (Long id : users) {
-            if (!id.equals(userId)) {
-                return id;
-            }
-        }
-        return null;
+        return userIds.stream()
+                .filter(id -> !id.equals(userId))
+                .findFirst()
+                .orElse(null);
     }
 }
