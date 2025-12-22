@@ -1,116 +1,186 @@
 package ru.itis.scrabble.services;
 
 import ru.itis.scrabble.dto.TilePlacementDTO;
-import ru.itis.scrabble.models.*;
-import java.util.Arrays;
+import ru.itis.scrabble.models.Board;
+import ru.itis.scrabble.models.BoardCell;
+import ru.itis.scrabble.models.CellType;
+import ru.itis.scrabble.services.BoardService;
+
+import java.util.*;
 
 public class BoardServiceImpl implements BoardService {
-    private Board board;
-    private static final int BOARD_SIZE = 15;
-    private static final int CENTER = BOARD_SIZE / 2;
-
-    public BoardServiceImpl() {
-        this.board = null;
-
-        createBoard();
-    }
 
     @Override
-    public void createBoard() {
-        BoardCell[][] cells = new BoardCell[BOARD_SIZE][BOARD_SIZE];
+    public List<List<TilePlacementDTO>> findAllWords(List<TilePlacementDTO> newPlacements, Board board) {
+        if (newPlacements.isEmpty()) return Collections.emptyList();
 
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                cells[i][j] = new BoardCell(CellType.NONE);
+        List<List<TilePlacementDTO>> allWords = new ArrayList<>();
+
+        // 1. Находим главное слово (вдоль которого выложены фишки)
+        boolean horizontal = isPlacementsHorizontal(newPlacements);
+        List<TilePlacementDTO> mainWord = findFullWordAt(newPlacements.get(0), horizontal, board, newPlacements);
+        if (mainWord.size() > 1 || (mainWord.size() == 1 && isFirstMove(board))) {
+            allWords.add(mainWord);
+        }
+
+        // 2. Находим все перпендикулярные слова (пересечения)
+        for (TilePlacementDTO p : newPlacements) {
+            List<TilePlacementDTO> crossWord = findFullWordAt(p, !horizontal, board, newPlacements);
+            if (crossWord.size() > 1) {
+                allWords.add(crossWord);
             }
         }
 
-        setBonusCells(cells);
-
-        this.board = new Board(cells);
-    }
-
-    private void setBonusCells(BoardCell[][] cells) {
-        // Центральная клетка - звезда (удвоение слова)
-        cells[CENTER][CENTER] = new BoardCell(CellType.DWS);
-
-        // Утроение слова (TWS) - красные клетки
-        int[][] twsPositions = {
-            {0, 0}, {0, 7}, {0, 14},
-            {7, 0}, {7, 14},
-            {14, 0}, {14, 7}, {14, 14}
-        };
-        for (int[] pos : twsPositions) {
-            cells[pos[0]][pos[1]] = new BoardCell(CellType.TWS);
-        }
-
-        // Удвоение слова (DWS) - розовые клетки
-        int[][] dwsPositions = {
-            {1, 1}, {1, 13}, {2, 2}, {2, 12}, {3, 3}, {3, 11}, {4, 4}, {4, 10},
-            {10, 4}, {10, 10}, {11, 3}, {11, 11}, {12, 2}, {12, 12}, {13, 1}, {13, 13},
-            {7, 7}
-        };
-        for (int[] pos : dwsPositions) {
-            cells[pos[0]][pos[1]] = new BoardCell(CellType.DWS);
-        }
-
-        // Утроение буквы (TLS) - синие клетки
-        int[][] tlsPositions = {
-            {1, 5}, {1, 9}, {5, 1}, {5, 5}, {5, 9}, {5, 13},
-            {9, 1}, {9, 5}, {9, 9}, {9, 13}, {13, 5}, {13, 9}
-        };
-        for (int[] pos : tlsPositions) {
-            cells[pos[0]][pos[1]] = new BoardCell(CellType.TLS);
-        }
-
-        // Удвоение буквы (DLS) - голубые клетки
-        int[][] dlsPositions = {
-            {0, 3}, {0, 11}, {2, 6}, {2, 8}, {3, 0}, {3, 7}, {3, 14},
-            {6, 2}, {6, 6}, {6, 8}, {6, 12}, {7, 3}, {7, 11},
-            {8, 2}, {8, 6}, {8, 8}, {8, 12}, {11, 0}, {11, 7}, {11, 14},
-            {12, 6}, {12, 8}, {14, 3}, {14, 11}
-        };
-        for (int[] pos : dlsPositions) {
-            cells[pos[0]][pos[1]] = new BoardCell(CellType.DLS);
-        }
+        return allWords;
     }
 
     @Override
-    public boolean isValidTilePosition(TilePlacementDTO tilePlacement) {
-        if (board == null) {
-            return false;
+    public boolean checkGeometry(List<TilePlacementDTO> newPlacements, Board board, boolean isFirstMove) {
+        if (newPlacements.isEmpty()) return false;
+
+        // 1. Проверка на одной ли линии (X или Y)
+        boolean horizontal = newPlacements.stream().allMatch(p -> p.y() == newPlacements.get(0).y());
+        boolean vertical = newPlacements.stream().allMatch(p -> p.x() == newPlacements.get(0).x());
+        if (!horizontal && !vertical) return false;
+
+        // 2. Если первый ход — должна быть фишка в центре (7,7)
+        if (isFirstMove) {
+            boolean hasCenter = newPlacements.stream().anyMatch(p -> p.x() == 7 && p.y() == 7);
+            if (!hasCenter) return false;
         }
 
-        int x = tilePlacement.x();
-        int y = tilePlacement.y();
-
-        // Проверяем границы
-        if (x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE) {
-            return false;
+        // 3. Проверка на "дырки" внутри выставленного ряда
+        List<TilePlacementDTO> mainWord = findFullWordAt(newPlacements.get(0), horizontal, board, newPlacements);
+        for (TilePlacementDTO p : newPlacements) {
+            if (!mainWord.contains(p)) return false; // Все новые фишки должны быть частью одного непрерывного слова
         }
 
-        // Проверяем, что клетка пуста
-        Tile existingTile = getTileAt(x, y);
-        return existingTile == null;
+        // 4. Если не первый ход — должна быть связь с уже стоящими фишками
+        if (!isFirstMove) {
+            boolean connected = false;
+            for (TilePlacementDTO p : newPlacements) {
+                if (hasAdjacentOldTile(p, board)) {
+                    connected = true;
+                    break;
+                }
+            }
+            if (!connected) return false;
+        }
+
+        return true;
     }
 
-    @Override
-    public Tile getTileAt(int x, int y) {
-        if (board == null || x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE) {
-            return null;
+    /**
+     * Создает и инициализирует игровое поле 15x15 с классической расстановкой бонусов.
+     * @return объект Board с настроенными бонусными клетками.
+     */
+    public Board createInitializedBoard() {
+        BoardCell[][] cells = new BoardCell[15][15];
+
+        // 1. Сначала заполняем всё пустыми клетками
+        for (int y = 0; y < 15; y++) {
+            for (int x = 0; x < 15; x++) {
+                cells[y][x] = new BoardCell(CellType.NONE);
+            }
         }
-        return board.getBoardCells()[y][x].getTile();
+
+        // 2. Расставляем Triple Word Score (TWS) - красные клетки
+        int[][] twsCoords = {{0,0}, {0,7}, {0,14}, {7,0}, {7,14}, {14,0}, {14,7}, {14,14}};
+        setBonus(cells, twsCoords, CellType.TWS);
+
+        // 3. Расставляем Double Word Score (DWS) - розовые клетки
+        int[][] dwsCoords = {
+                {1,1}, {2,2}, {3,3}, {4,4}, {1,13}, {2,12}, {3,11}, {4,10},
+                {13,1}, {12,2}, {11,3}, {10,4}, {13,13}, {12,12}, {11,11}, {10,10}, {7,7}
+        };
+        setBonus(cells, dwsCoords, CellType.DWS);
+
+        // 4. Расставляем Triple Letter Score (TLS) - синие клетки
+        int[][] tlsCoords = {
+                {1,5}, {1,9}, {5,1}, {5,5}, {5,9}, {5,13},
+                {9,1}, {9,5}, {9,9}, {9,13}, {13,5}, {13,9}
+        };
+        setBonus(cells, tlsCoords, CellType.TLS);
+
+        // 5. Расставляем Double Letter Score (DLS) - голубые клетки
+        int[][] dlsCoords = {
+                {0,3}, {0,11}, {2,6}, {2,8}, {3,0}, {3,7}, {3,14}, {6,2}, {6,6}, {6,8}, {6,12},
+                {7,3}, {7,11}, {8,2}, {8,6}, {8,8}, {8,12}, {11,0}, {11,7}, {11,14}, {12,6}, {12,8}, {14,3}, {14,11}
+        };
+        setBonus(cells, dlsCoords, CellType.DLS);
+
+        return new Board(cells);
     }
 
-    @Override
-    public void placeTile(TilePlacementDTO placement) {
-        if (board != null && isValidTilePosition(placement)) {
-            board.setCell(placement.x(), placement.y(), placement.tile());
+    /**
+     * Вспомогательный метод для массовой установки типа клетки по координатам
+     */
+    private void setBonus(BoardCell[][] cells, int[][] coords, CellType type) {
+        for (int[] coord : coords) {
+            int y = coord[0];
+            int x = coord[1];
+            cells[y][x] = new BoardCell(type);
         }
     }
 
-    @Override
-    public Board getBoard() {
-        return board;
+    // Вспомогательный метод: собирает слово целиком, учитывая новые и старые фишки
+    private List<TilePlacementDTO> findFullWordAt(TilePlacementDTO start, boolean horizontal, Board board, List<TilePlacementDTO> newPlacements) {
+        List<TilePlacementDTO> word = new ArrayList<>();
+        int x = start.x();
+        int y = start.y();
+        BoardCell[][] cells = board.getBoardCells();
+
+        // Идем в начало слова (влево или вверх)
+        while (hasAnyTileAt(x - (horizontal ? 1 : 0), y - (horizontal ? 0 : 1), cells, newPlacements)) {
+            x -= (horizontal ? 1 : 0);
+            y -= (horizontal ? 0 : 1);
+        }
+
+        // Собираем слово целиком (вправо или вниз)
+        while (hasAnyTileAt(x, y, cells, newPlacements)) {
+            word.add(getTileFromBoardOrNew(x, y, cells, newPlacements));
+            x += (horizontal ? 1 : 0);
+            y += (horizontal ? 0 : 1);
+        }
+
+        return word;
+    }
+
+    private boolean hasAnyTileAt(int x, int y, BoardCell[][] cells, List<TilePlacementDTO> newPlacements) {
+        if (x < 0 || x >= 15 || y < 0 || y >= 15) return false;
+        if (cells[y][x].getTile() != null) return true;
+        return newPlacements.stream().anyMatch(p -> p.x() == x && p.y() == y);
+    }
+
+    private TilePlacementDTO getTileFromBoardOrNew(int x, int y, BoardCell[][] cells, List<TilePlacementDTO> newPlacements) {
+        // Сначала ищем в новых
+        for (TilePlacementDTO p : newPlacements) {
+            if (p.x() == x && p.y() == y) return p;
+        }
+        // Если нет в новых — берем с доски
+        return new TilePlacementDTO(cells[y][x].getTile(), x, y);
+    }
+
+    private boolean isPlacementsHorizontal(List<TilePlacementDTO> placements) {
+        if (placements.size() < 2) return true; // Одиночная фишка может считаться началом горизонтального
+        return placements.get(0).y() == placements.get(1).y();
+    }
+
+    private boolean hasAdjacentOldTile(TilePlacementDTO p, Board board) {
+        int[] dx = {1, -1, 0, 0};
+        int[] dy = {0, 0, 1, -1};
+        BoardCell[][] cells = board.getBoardCells();
+        for (int i = 0; i < 4; i++) {
+            int nx = p.x() + dx[i];
+            int ny = p.y() + dy[i];
+            if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15 && cells[ny][nx].getTile() != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isFirstMove(Board board) {
+        return board.isEmpty();
     }
 }

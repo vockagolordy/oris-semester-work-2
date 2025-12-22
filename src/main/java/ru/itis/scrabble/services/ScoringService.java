@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface ScoringService {
 
-    int countScore(Board board, List<TilePlacementDTO> tilePlacements);
+    int countScore(List<TilePlacementDTO> newPlacements, List<List<TilePlacementDTO>> allWords, Board board);
 }
