@@ -1,69 +1,65 @@
 package ru.itis.scrabble.util;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Утилитарный класс для лингвистической проверки слов.
+ */
 public class DictUtil {
     private static final Set<String> dictionary = new HashSet<>();
-    private static final String DICTIONARY_PATH = "dictionary.txt";
-    private static boolean isLoaded = false;
+    private static final String WORDS_FILE = "/words.txt";
 
     static {
         loadDictionary();
     }
 
+    /**
+     * Загружает слова из файла ресурсов в HashSet при старте приложения.
+     */
     private static void loadDictionary() {
-        try {
-            Path path = Paths.get(DICTIONARY_PATH);
-            if (Files.exists(path)) {
-                Files.lines(path)
-                        .map(String::trim)
-                        .map(String::toUpperCase)
-                        .filter(word -> word.length() > 1) // Игнорируем одиночные буквы
-                        .forEach(dictionary::add);
-                System.out.println("Словарь загружен: " + dictionary.size() + " слов");
-                isLoaded = true;
-            } else {
-                System.out.println("Файл словаря не найден: " + DICTIONARY_PATH);
-                // Загружаем небольшой встроенный словарь для тестирования
-                loadDefaultDictionary();
+        try (InputStream is = DictUtil.class.getResourceAsStream(WORDS_FILE)) {
+            if (is == null) {
+                System.err.println("Файл словаря не найден: " + WORDS_FILE);
+                return;
             }
-        } catch (IOException e) {
-            System.err.println("Ошибка загрузки словаря: " + e.getMessage());
-            loadDefaultDictionary();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                String word;
+                while ((word = reader.readLine()) != null) {
+                    word = word.trim().toUpperCase();
+                    if (!word.isEmpty()) {
+                        dictionary.add(word);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Ошибка при загрузке словаря: " + e.getMessage());
         }
     }
 
-    private static void loadDefaultDictionary() {
-        // Небольшой набор слов для тестирования
-        String[] defaultWords = {
-                "CAT", "DOG", "HOUSE", "COMPUTER", "SCRIBBLE", "GAME",
-                "PLAY", "WORD", "LETTER", "BOARD", "TILE", "SCORE",
-                "TEST", "HELLO", "WORLD", "JAVA", "PROGRAM", "SERVER"
-        };
-        for (String word : defaultWords) {
-            dictionary.add(word);
-        }
-        isLoaded = true;
-        System.out.println("Загружен тестовый словарь: " + dictionary.size() + " слов");
-    }
-
-    public static boolean isValidWord(String word) {
-        if (!isLoaded) {
-            loadDictionary();
-        }
+    /**
+     * Проверяет, существует ли слово в словаре.
+     * @param word Слово для проверки.
+     * @return true, если слово найдено.
+     */
+    public static boolean isWordValid(String word) {
+        if (word == null) return false;
         return dictionary.contains(word.toUpperCase());
     }
 
-    public static int getWordCount() {
-        return dictionary.size();
-    }
-
-    public static void addWord(String word) {
-        dictionary.add(word.toUpperCase());
+    /**
+     * Позволяет проверить список слов (например, основное и перпендикулярные).
+     */
+    public static boolean areAllWordsValid(Iterable<String> words) {
+        for (String word : words) {
+            if (!isWordValid(word)) {
+                return false;
+            }
+        }
+        return true;
     }
 }
