@@ -4,7 +4,6 @@ import ru.itis.scrabble.dto.TilePlacementDTO;
 import ru.itis.scrabble.models.Board;
 import ru.itis.scrabble.models.BoardCell;
 import ru.itis.scrabble.models.CellType;
-import ru.itis.scrabble.services.BoardService;
 
 import java.util.*;
 
@@ -74,6 +73,7 @@ public class BoardServiceImpl implements BoardService {
      * Создает и инициализирует игровое поле 15x15 с классической расстановкой бонусов.
      * @return объект Board с настроенными бонусными клетками.
      */
+    @Override
     public Board createInitializedBoard() {
         BoardCell[][] cells = new BoardCell[15][15];
 
