@@ -8,7 +8,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.text.Font?>
 
-<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.itis.scrabble.client.visuals.ChooseFirstPlayerController">
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.itis.scrabble.controllers.ChooseFirstPlayerController">
 
     <VBox alignment="CENTER" spacing="30" style="-fx-background-color: white; -fx-padding: 40; -fx-border-color: #2E8B57; -fx-border-width: 3;">
 
