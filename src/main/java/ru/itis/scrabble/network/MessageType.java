@@ -14,7 +14,6 @@ public enum MessageType {
     GET_GAME_STATE,
     MAKE_MOVE,
     SKIP_TURN,
-    CHANGE_TILES,
     SURRENDER,
     OFFER_DRAW,
     EXIT_GAME,

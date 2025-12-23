@@ -3,7 +3,6 @@ package ru.itis.scrabble.network;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ru.itis.scrabble.dto.NetworkMessageDTO;
 import ru.itis.scrabble.dto.TilePlacementDTO;
 import ru.itis.scrabble.services.GameSessionService;
 
@@ -23,7 +22,7 @@ public class PacketHandler {
 
     public void handle(ClientSession session, String json) {
         try {
-            NetworkMessageDTO message = objectMapper.readValue(json, NetworkMessageDTO.class);
+            NetworkMessage message = objectMapper.readValue(json, NetworkMessage.class);
 
             switch (message.type()) {
                 case AUTH -> handleAuth(session, message);
@@ -38,7 +37,7 @@ public class PacketHandler {
         }
     }
 
-    private void handleAuth(ClientSession session, NetworkMessageDTO message) {
+    private void handleAuth(ClientSession session, NetworkMessage message) {
         // Предполагаем, что в payload приходят данные в формате "username:password"
         String[] credentials = message.payload().split(":");
         if (credentials.length == 2) {
@@ -48,7 +47,7 @@ public class PacketHandler {
         }
     }
 
-    private void handleTurn(ClientSession session, NetworkMessageDTO message) {
+    private void handleTurn(ClientSession session, NetworkMessage message) {
         try {
             // Десериализуем список фишек из payload
             List<TilePlacementDTO> placements = objectMapper.readValue(
@@ -61,7 +60,7 @@ public class PacketHandler {
         }
     }
 
-    private void handlePreview(ClientSession session, NetworkMessageDTO message) {
+    private void handlePreview(ClientSession session, NetworkMessage message) {
         try {
             List<TilePlacementDTO> placements = objectMapper.readValue(
                     message.payload(),
