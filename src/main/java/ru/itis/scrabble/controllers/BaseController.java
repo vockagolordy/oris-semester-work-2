@@ -1,9 +1,8 @@
 package ru.itis.scrabble.controllers;
 
-import javafx.fxml.FXML;
 import ru.itis.scrabble.navigation.NavigationManager;
 import ru.itis.scrabble.network.NetworkClient;
-import ru.itis.scrabble.dto.NetworkMessage; // Убедитесь, что импорт соответствует вашему проекту
+import ru.itis.scrabble.dto.NetworkMessageDTO; // Убедитесь, что импорт соответствует вашему проекту
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 
@@ -84,5 +83,5 @@ public abstract class BaseController {
         sendNetworkMessage(actionType, data);
     }
 
-    public abstract void handleNetworkMessage(NetworkMessage message);
+    public abstract void handleNetworkMessage(NetworkMessageDTO message);
 }

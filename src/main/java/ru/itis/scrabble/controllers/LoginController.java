@@ -7,7 +7,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import ru.itis.scrabble.navigation.View;
-import ru.itis.scrabble.dto.NetworkMessage;
+import ru.itis.scrabble.dto.NetworkMessageDTO;
 
 import java.util.Map;
 
@@ -65,7 +65,7 @@ public class LoginController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(NetworkMessage message) {
+    public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
                 String payload = message.payload();

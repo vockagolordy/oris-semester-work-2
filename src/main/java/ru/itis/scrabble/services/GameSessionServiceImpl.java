@@ -1,7 +1,7 @@
 package ru.itis.scrabble.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ru.itis.scrabble.dto.NetworkMessage;
+import ru.itis.scrabble.dto.NetworkMessageDTO;
 import ru.itis.scrabble.dto.TilePlacementDTO;
 import ru.itis.scrabble.models.*;
 import ru.itis.scrabble.network.ClientSession;
@@ -118,7 +118,7 @@ public class GameSessionServiceImpl implements GameSessionService {
 
         try {
             String gameStateJson = objectMapper.writeValueAsString(game);
-            NetworkMessage syncMsg = new NetworkMessage(MessageType.SYNC_STATE, gameStateJson, "SERVER");
+            NetworkMessageDTO syncMsg = new NetworkMessageDTO(MessageType.SYNC_STATE, gameStateJson, "SERVER");
 
             for (ClientSession session : sessions) {
                 sendMessage(session, syncMsg);
@@ -137,7 +137,7 @@ public class GameSessionServiceImpl implements GameSessionService {
                 .findFirst()
                 .ifPresent(s -> {
                     try {
-                        NetworkMessage msg = new NetworkMessage(MessageType.ERROR, errorText, "SERVER");
+                        NetworkMessageDTO msg = new NetworkMessageDTO(MessageType.ERROR, errorText, "SERVER");
                         sendMessage(s, msg);
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -149,7 +149,7 @@ public class GameSessionServiceImpl implements GameSessionService {
      * Исправлено: Централизованный метод отправки.
      * Теперь строго соблюдает протокол [4 байта длины] + [JSON]
      */
-    private void sendMessage(ClientSession session, NetworkMessage message) throws IOException {
+    private void sendMessage(ClientSession session, NetworkMessageDTO message) throws IOException {
         byte[] body = objectMapper.writeValueAsBytes(message);
 
         // Выделяем один буфер под всё сообщение (Header + Body)

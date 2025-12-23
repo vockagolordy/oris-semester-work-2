@@ -13,7 +13,7 @@ import ru.itis.scrabble.dto.GameStateDTO;
 import ru.itis.scrabble.dto.TilePlacementDTO;
 import ru.itis.scrabble.models.*;
 import ru.itis.scrabble.navigation.View;
-import ru.itis.scrabble.dto.NetworkMessage;
+import ru.itis.scrabble.dto.NetworkMessageDTO;
 
 import java.util.*;
 
@@ -472,7 +472,7 @@ public class GameController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(NetworkMessage message) {
+    public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();

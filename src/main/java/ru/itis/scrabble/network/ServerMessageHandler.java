@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.application.Platform;
 import ru.itis.scrabble.controllers.BaseController;
 import ru.itis.scrabble.navigation.NavigationManager;
-import ru.itis.scrabble.dto.NetworkMessage;
+import ru.itis.scrabble.dto.NetworkMessageDTO;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,7 +30,7 @@ public class ServerMessageHandler {
         activeControllers.remove(controllerType);
     }
 
-    public void handleMessage(NetworkMessage message) {
+    public void handleMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
                 if (message == null) return;
@@ -53,7 +53,7 @@ public class ServerMessageHandler {
         });
     }
 
-    private void forwardToController(String controllerType, NetworkMessage message) {
+    private void forwardToController(String controllerType, NetworkMessageDTO message) {
         BaseController controller = activeControllers.get(controllerType);
         if (controller != null) {
             controller.handleNetworkMessage(message);
@@ -62,7 +62,7 @@ public class ServerMessageHandler {
         }
     }
 
-    private void broadcastMessage(NetworkMessage message) {
+    private void broadcastMessage(NetworkMessageDTO message) {
         // Отправляем сообщение всем активным контроллерам
         for (BaseController controller : activeControllers.values()) {
             controller.handleNetworkMessage(message);

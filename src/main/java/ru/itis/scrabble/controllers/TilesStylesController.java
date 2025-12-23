@@ -11,7 +11,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
 import ru.itis.scrabble.navigation.View;
-import ru.itis.scrabble.dto.NetworkMessage;
+import ru.itis.scrabble.dto.NetworkMessageDTO;
 
 import java.util.Map;
 
@@ -167,7 +167,7 @@ public class TilesStylesController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(NetworkMessage message) {
+    public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();

@@ -7,7 +7,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.VBox;
 import ru.itis.scrabble.navigation.View;
-import ru.itis.scrabble.dto.NetworkMessage;
+import ru.itis.scrabble.dto.NetworkMessageDTO;
 
 import java.util.Map;
 import java.util.Random;
@@ -135,7 +135,7 @@ public class ChooseFirstPlayerController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(NetworkMessage message) {
+    public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
                 String payload = message.payload();

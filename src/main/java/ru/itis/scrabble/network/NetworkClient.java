@@ -10,12 +10,12 @@ import java.nio.channels.SocketChannel;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import ru.itis.scrabble.dto.NetworkMessage;
+import ru.itis.scrabble.dto.NetworkMessageDTO;
 
 public class NetworkClient {
     private SocketChannel channel;
     private final ByteBuffer readBuffer;
-    private Consumer<NetworkMessage> messageHandler; // Теперь принимает dto.NetworkMessage
+    private Consumer<NetworkMessageDTO> messageHandler; // Теперь принимает dto.NetworkMessage
     private final ExecutorService executor;
     private final ObjectMapper objectMapper;
     private boolean connected;
@@ -76,7 +76,7 @@ public class NetworkClient {
                 mt = MessageType.GAME_EVENT;
             }
 
-            NetworkMessage message = new NetworkMessage(mt, payload, null);
+            NetworkMessageDTO message = new NetworkMessageDTO(mt, payload, null);
             byte[] body = objectMapper.writeValueAsBytes(message);
 
             // Выделяем память: 4 байта под int + длина тела
@@ -136,7 +136,7 @@ public class NetworkClient {
             readBuffer.get(body);
 
             try {
-                NetworkMessage msg = objectMapper.readValue(body, NetworkMessage.class);
+                NetworkMessageDTO msg = objectMapper.readValue(body, NetworkMessageDTO.class);
                 Platform.runLater(() -> {
                     if (messageHandler != null) messageHandler.accept(msg);
                 });
@@ -151,7 +151,7 @@ public class NetworkClient {
         connected = false;
         Platform.runLater(() -> {
                 if (messageHandler != null) {
-                messageHandler.accept(new NetworkMessage(MessageType.ERROR, "Сервер разорвал соединение", null));
+                messageHandler.accept(new NetworkMessageDTO(MessageType.ERROR, "Сервер разорвал соединение", null));
             }
         });
     }
@@ -160,12 +160,12 @@ public class NetworkClient {
         connected = false;
         Platform.runLater(() -> {
                 if (messageHandler != null) {
-                messageHandler.accept(new NetworkMessage(MessageType.ERROR, error, null));
+                messageHandler.accept(new NetworkMessageDTO(MessageType.ERROR, error, null));
             }
         });
     }
 
-    public void setMessageHandler(Consumer<NetworkMessage> handler) {
+    public void setMessageHandler(Consumer<NetworkMessageDTO> handler) {
         this.messageHandler = handler;
     }
 

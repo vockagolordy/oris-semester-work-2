@@ -5,7 +5,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import ru.itis.scrabble.navigation.View;
-import ru.itis.scrabble.dto.NetworkMessage;
+import ru.itis.scrabble.dto.NetworkMessageDTO;
 
 import java.util.Map;
 
@@ -69,7 +69,7 @@ public class MainMenuController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(NetworkMessage message) {
+    public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             // Обработка сообщений, специфичных для главного меню
             String payload = message.payload();
