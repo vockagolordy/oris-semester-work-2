@@ -11,14 +11,13 @@ import java.util.List;
  * Реализация сервиса для работы с мешком фишек.
  */
 public class BagServiceImpl implements BagService {
-    private Bag bag;
 
     public BagServiceImpl() {
         fullBag();
     }
 
     @Override
-    public void fullBag() {
+    public Bag fullBag() {
         List<Tile> tiles = new ArrayList<>();
 
         // Стандартное распределение фишек для английского Scrabble
@@ -49,7 +48,7 @@ public class BagServiceImpl implements BagService {
         addTiles(tiles, Tile.Y, 2);
         addTiles(tiles, Tile.Z, 1);
 
-        this.bag = new Bag(tiles); //
+        return new Bag(tiles);
     }
 
     private void addTiles(List<Tile> tiles, Tile tile, int count) {
@@ -59,7 +58,7 @@ public class BagServiceImpl implements BagService {
     }
 
     @Override
-    public List<Tile> takeTiles(int amount) {
+    public List<Tile> takeTiles(Bag bag, int amount) {
         if (bag == null || bag.isEmpty()) { //
             return Collections.emptyList();
         }
@@ -75,12 +74,12 @@ public class BagServiceImpl implements BagService {
     }
 
     @Override
-    public boolean isEmpty() {
+    public boolean isEmpty(Bag bag) {
         return bag == null || bag.isEmpty(); //
     }
 
     @Override
-    public int getRemainingCount() {
+    public int getRemainingCount(Bag bag) {
         return (bag != null) ? bag.getRemainingCount() : 0; //
     }
 }

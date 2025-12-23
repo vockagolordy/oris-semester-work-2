@@ -41,16 +41,16 @@ public class GameSessionServiceImpl implements GameSessionService {
         Board board = boardService.createInitializedBoard();
 
         // 2. Наполняем мешок
-        bagService.fullBag();
+        Bag bag = bagService.fullBag();
 
         // 3. Раздаем фишки игрокам
         for (Player player : players) {
             player.getRack().clear();
-            player.addTiles(bagService.takeTiles(7));
+            player.addTiles(bagService.takeTiles(bag, 7));
         }
 
         // 4. Создаем игру и сохраняем сессии для рассылки
-        GameSession game = new GameSession(board, null, players);
+        GameSession game = new GameSession(board, bag, players);
         games.put(roomId, game);
         roomSessions.put(roomId, new ArrayList<>(sessions));
 
@@ -96,7 +96,7 @@ public class GameSessionServiceImpl implements GameSessionService {
         // 6. Обновление руки
         List<Tile> usedTiles = placements.stream().map(TilePlacementDTO::tile).toList();
         currentPlayer.removeTiles(usedTiles);
-        currentPlayer.addTiles(bagService.takeTiles(placements.size()));
+        currentPlayer.addTiles(bagService.takeTiles(session.getBag(), placements.size()));
 
         // 7. Переход хода
         session.nextTurn();
