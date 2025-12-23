@@ -14,6 +14,7 @@ public class NetworkServer implements Runnable {
     private Selector selector;
     private ServerSocketChannel serverChannel;
     private boolean running;
+    private PacketHandler packetHandler;
 
     // Мапа для хранения сессий: Канал -> Сессия
     private final Map<SocketChannel, ClientSession> sessions = new ConcurrentHashMap<>();
@@ -142,8 +143,15 @@ public class NetworkServer implements Runnable {
     }
 
 
+    public void setPacketHandler(PacketHandler packetHandler) {
+        this.packetHandler = packetHandler;
+    }
+
     private void handleJsonPacket(ClientSession session, String json) {
-        // TODO
-        // packetHandler.dispatch(session, json);
+        if (packetHandler != null) {
+            packetHandler.handle(session, json);
+        } else {
+            System.err.println("Предупреждение: PacketHandler не установлен!");
+        }
     }
 }
