@@ -1,0 +1,350 @@
+package ru.itis.scrabble.controllers;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import javafx.application.Platform;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.fxml.FXML;
+import javafx.scene.control.*;
+import ru.itis.scrabble.navigation.View;
+
+import java.util.List;
+import java.util.Map;
+
+public class RoomListController extends BaseController {
+
+    @FXML private TableView<RoomInfo> roomsTable;
+    @FXML private TableColumn<RoomInfo, Integer> portColumn;
+    @FXML private TableColumn<RoomInfo, String> creatorColumn;
+    @FXML private TableColumn<RoomInfo, String> statusColumn;
+    @FXML private TableColumn<RoomInfo, Integer> playerCountColumn;
+
+    @FXML private Button refreshButton;
+    @FXML private Button joinButton;
+    @FXML private Button backButton;
+
+    @FXML private TextField manualPortField;
+    @FXML private Button connectButton;
+
+    @FXML private Label errorLabel;
+
+    private ObservableList<RoomInfo> roomList = FXCollections.observableArrayList();
+
+    // Модель данных для таблицы комнат
+    public static class RoomInfo {
+        private final SimpleIntegerProperty port;
+        private final SimpleStringProperty creator;
+        private final SimpleStringProperty status;
+        private final SimpleIntegerProperty playerCount;
+        private final String hostId; // Добавляем для идентификации хоста
+
+        public RoomInfo(int port, String creator, String status, int playerCount, String hostId) {
+            this.port = new SimpleIntegerProperty(port);
+            this.creator = new SimpleStringProperty(creator);
+            this.status = new SimpleStringProperty(status);
+            this.playerCount = new SimpleIntegerProperty(playerCount);
+            this.hostId = hostId;
+        }
+
+        public int getPort() { return port.get(); }
+        public String getCreator() { return creator.get(); }
+        public String getStatus() { return status.get(); }
+        public int getPlayerCount() { return playerCount.get(); }
+        public String getHostId() { return hostId; }
+    }
+
+    @Override
+    public void initialize(java.net.URL location, java.util.ResourceBundle resources) {
+        setupTable();
+        setupEventHandlers();
+        loadRoomList();
+    }
+
+    private void setupTable() {
+        // Настраиваем привязку данных к колонкам
+        portColumn.setCellValueFactory(cellData -> cellData.getValue().port.asObject());
+        creatorColumn.setCellValueFactory(cellData -> cellData.getValue().creator);
+        statusColumn.setCellValueFactory(cellData -> cellData.getValue().status);
+        playerCountColumn.setCellValueFactory(cellData -> cellData.getValue().playerCount.asObject());
+
+        roomsTable.setItems(roomList);
+
+        // Настраиваем двойной клик для входа в комнату
+        roomsTable.setRowFactory(tv -> {
+            TableRow<RoomInfo> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && !row.isEmpty()) {
+                    joinSelectedRoom();
+                }
+            });
+            return row;
+        });
+
+        // Настраиваем сортировку по умолчанию (по порту)
+        roomsTable.getSortOrder().add(portColumn);
+    }
+
+    private void setupEventHandlers() {
+        refreshButton.setOnAction(event -> loadRoomList());
+        joinButton.setOnAction(event -> joinSelectedRoom());
+        backButton.setOnAction(event -> navigator.navigate(View.MAIN_MENU));
+        connectButton.setOnAction(event -> connectToManualPort());
+
+        // Обработка нажатия Enter в поле ввода порта
+        manualPortField.setOnAction(event -> connectToManualPort());
+    }
+
+    private void loadRoomList() {
+        // Отправляем запрос на получение списка комнат
+        sendJsonCommand("GET_ROOMS", Map.of("userId", currentUserId, "username", currentUsername));
+
+        // Временно блокируем кнопки
+        refreshButton.setDisable(true);
+        refreshButton.setText("Обновление...");
+        errorLabel.setVisible(false);
+    }
+
+    private void joinSelectedRoom() {
+        RoomInfo selected = roomsTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            joinRoom(selected.getPort());
+        } else {
+            showError("Выберите комнату из списка");
+        }
+    }
+
+    private void connectToManualPort() {
+        String portText = manualPortField.getText().trim();
+        if (portText.isEmpty()) {
+            showError("Введите номер порта");
+            return;
+        }
+
+        try {
+            int port = Integer.parseInt(portText);
+            if (port < 1024 || port > 65535) {
+                showError("Порт должен быть в диапазоне 1024-65535");
+                return;
+            }
+            joinRoom(port);
+        } catch (NumberFormatException e) {
+            showError("Введите корректный номер порта");
+        }
+    }
+
+    private void joinRoom(int port) {
+        // Блокируем кнопки на время подключения
+        joinButton.setDisable(true);
+        connectButton.setDisable(true);
+        errorLabel.setVisible(false);
+
+        // Отправляем запрос на присоединение к комнате
+        Map<String, Object> joinData = Map.of(
+            "type", "JOIN_ROOM",
+            "port", port,
+            "userId", currentUserId,
+            "username", currentUsername
+        );
+
+        sendJsonCommand("JOIN_ROOM", joinData);
+    }
+
+    private void showError(String message) {
+        errorLabel.setText(message);
+        errorLabel.setVisible(true);
+    }
+
+    private void clearError() {
+        errorLabel.setVisible(false);
+    }
+
+    @Override
+    public void handleNetworkMessage(String message) {
+        Platform.runLater(() -> {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+
+                if (message.startsWith("ROOM_LIST|")) {
+                    // Получен список комнат
+                    String json = message.substring("ROOM_LIST|".length());
+                    Map<String, Object> response = mapper.readValue(json, Map.class);
+
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> rooms = (List<Map<String, Object>>) response.get("rooms");
+
+                    // Обновляем список комнат
+                    roomList.clear();
+                    if (rooms != null) {
+                        for (Map<String, Object> room : rooms) {
+                            int port = ((Number) room.get("port")).intValue();
+                            String creator = (String) room.get("creator");
+                            String status = (String) room.get("status");
+                            int playerCount = ((Number) room.get("playerCount")).intValue();
+                            String hostId = (String) room.get("hostId");
+
+                            roomList.add(new RoomInfo(port, creator, status, playerCount, hostId));
+                        }
+                    }
+
+                    // Восстанавливаем кнопки
+                    refreshButton.setDisable(false);
+                    refreshButton.setText("Обновить");
+                    roomsTable.sort();
+
+                    // Показываем статус
+                    if (roomList.isEmpty()) {
+                        showError("Нет доступных комнат. Создайте свою!");
+                    } else {
+                        clearError();
+                    }
+
+                } else if (message.startsWith("JOIN_SUCCESS|")) {
+                    // Успешно присоединились к комнате
+                    String json = message.substring("JOIN_SUCCESS|".length());
+                    Map<String, Object> response = mapper.readValue(json, Map.class);
+
+                    int port = ((Number) response.get("port")).intValue();
+                    String hostId = (String) response.get("hostId");
+                    String hostName = (String) response.get("hostName");
+                    String opponentName = (String) response.get("opponentName");
+                    Long opponentId = response.containsKey("opponentId") ?
+                        ((Number) response.get("opponentId")).longValue() : null;
+
+                    // Восстанавливаем кнопки
+                    joinButton.setDisable(false);
+                    connectButton.setDisable(false);
+
+                    // Переходим в комнату ожидания
+                    Map<String, Object> roomData = Map.of(
+                        "port", port,
+                        "hostId", hostId,
+                        "hostName", hostName,
+                        "isHost", hostId.equals(String.valueOf(currentUserId))
+                    );
+
+                    // Если есть информация об оппоненте
+                    if (opponentName != null && opponentId != null) {
+                        roomData.put("opponentId", opponentId);
+                        roomData.put("opponentName", opponentName);
+                    }
+
+                    navigator.navigate(View.WAITING_ROOM, roomData);
+
+                } else if (message.startsWith("JOIN_ERROR|")) {
+                    // Ошибка при присоединении
+                    String error = message.substring("JOIN_ERROR|".length());
+                    showError("Ошибка подключения: " + error);
+
+                    // Восстанавливаем кнопки
+                    joinButton.setDisable(false);
+                    connectButton.setDisable(false);
+
+                } else if (message.startsWith("ROOM_FULL|")) {
+                    showError("Комната уже заполнена (максимум 2 игрока)");
+                    joinButton.setDisable(false);
+                    connectButton.setDisable(false);
+
+                } else if (message.startsWith("ROOM_NOT_FOUND|")) {
+                    showError("Комната не найдена или уже закрыта");
+                    joinButton.setDisable(false);
+                    connectButton.setDisable(false);
+
+                } else if (message.startsWith("ROOM_CLOSED|")) {
+                    showError("Комната была закрыта создателем");
+                    joinButton.setDisable(false);
+                    connectButton.setDisable(false);
+
+                } else if (message.startsWith("ALREADY_IN_ROOM|")) {
+                    showError("Вы уже находитесь в комнате");
+                    joinButton.setDisable(false);
+                    connectButton.setDisable(false);
+
+                } else if (message.startsWith("GAME_IN_PROGRESS|")) {
+                    showError("В этой комнате уже идет игра");
+                    joinButton.setDisable(false);
+                    connectButton.setDisable(false);
+
+                } else if (message.startsWith("INVALID_ROOM|")) {
+                    showError("Некорректная комната");
+                    joinButton.setDisable(false);
+                    connectButton.setDisable(false);
+
+                } else if (message.startsWith("ERROR|")) {
+                    // Общая ошибка
+                    String error = message.substring("ERROR|".length());
+                    showError("Ошибка: " + error);
+
+                    // Восстанавливаем кнопки
+                    refreshButton.setDisable(false);
+                    refreshButton.setText("Обновить");
+                    joinButton.setDisable(false);
+                    connectButton.setDisable(false);
+
+                } else if (message.startsWith("ROOM_CREATED_BROADCAST|")) {
+                    // Кто-то создал новую комнату - обновляем список
+                    loadRoomList();
+
+                } else if (message.startsWith("ROOM_CLOSED_BROADCAST|")) {
+                    // Кто-то закрыл комнату - обновляем список
+                    loadRoomList();
+
+                } else if (message.startsWith("NEW_ROOM_AVAILABLE|")) {
+                    // Новая комната доступна - показываем уведомление
+                    String roomInfo = message.substring("NEW_ROOM_AVAILABLE|".length());
+                    navigator.showDialog("Новая комната",
+                        "Появилась новая комната: " + roomInfo + "\n" +
+                        "Обновите список, чтобы увидеть её.");
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                showError("Ошибка обработки данных от сервера");
+
+                // Восстанавливаем кнопки при любой ошибке
+                refreshButton.setDisable(false);
+                refreshButton.setText("Обновить");
+                joinButton.setDisable(false);
+                connectButton.setDisable(false);
+            }
+        });
+    }
+
+    @Override
+    public void initData(Object data) {
+        // При показе экрана обновляем список комнат
+        loadRoomList();
+        clearError();
+        manualPortField.clear();
+
+        // Восстанавливаем состояние кнопок
+        refreshButton.setDisable(false);
+        joinButton.setDisable(false);
+        connectButton.setDisable(false);
+    }
+
+    // Дополнительные методы для работы с UI
+
+    /**
+     * Автоматическое обновление списка комнат
+     */
+    public void startAutoRefresh() {
+        // Можно реализовать автоматическое обновление каждые 10 секунд
+        // Например, с помощью Timeline или ScheduledExecutorService
+    }
+
+    /**
+     * Остановка автоматического обновления
+     */
+    public void stopAutoRefresh() {
+        // Остановить таймер или scheduled task
+    }
+
+    /**
+     * Фильтрация комнат по статусу
+     */
+    public void filterRooms(String filter) {
+        // Реализация фильтрации, если потребуется
+    }
+}
