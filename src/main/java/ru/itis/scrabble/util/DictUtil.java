@@ -12,7 +12,7 @@ import java.util.Set;
  */
 public class DictUtil {
     private static final Set<String> dictionary = new HashSet<>();
-    private static final String WORDS_FILE = "/words.txt";
+    private static final String WORDS_FILE = "src/main/resources/wordlist-20210729.txt";
 
     static {
         loadDictionary();
