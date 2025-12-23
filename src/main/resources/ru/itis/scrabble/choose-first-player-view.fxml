@@ -1,16 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ProgressIndicator?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.StackPane?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="ru.itis.scrabble.controllers.ChooseFirstPlayerController">
 
-<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.itis.scrabble.controllers.ChooseFirstPlayerController">
-
-    <VBox alignment="CENTER" spacing="30" style="-fx-background-color: white; -fx-padding: 40; -fx-border-color: #2E8B57; -fx-border-width: 3;">
+    <VBox alignment="CENTER" spacing="30"
+          style="-fx-background-color: white; -fx-padding: 40; -fx-border-color: #2E8B57; -fx-border-width: 3;">
 
         <Label text="Определение первого хода" style="-fx-text-fill: #2E8B57;">
             <font>
@@ -19,30 +16,37 @@
         </Label>
 
         <StackPane prefWidth="200" prefHeight="200">
-            <ProgressIndicator fx:id="spinner" progress="-1" style="-fx-progress-color: #4CAF50;" prefWidth="150" prefHeight="150"/>
+            <ProgressIndicator fx:id="spinner" progress="-1" style="-fx-progress-color: #4CAF50;" prefWidth="150"
+                               prefHeight="150"/>
         </StackPane>
 
         <HBox spacing="40" alignment="CENTER">
-            <VBox fx:id="player1Card" spacing="10" alignment="CENTER" style="-fx-padding: 20; -fx-background-color: #E8F5E8; -fx-border-color: #4CAF50;">
+            <VBox fx:id="player1Card" spacing="10" alignment="CENTER"
+                  style="-fx-padding: 20; -fx-background-color: #E8F5E8; -fx-border-color: #4CAF50;">
                 <Label fx:id="player1NameLabel" text="Игрок 1" style="-fx-font-size: 20; -fx-font-weight: bold;"/>
                 <Label text="Ожидание..." style="-fx-text-fill: #666;"/>
             </VBox>
 
             <Label text="VS" style="-fx-font-size: 24; -fx-font-weight: bold; -fx-text-fill: #666;"/>
 
-            <VBox fx:id="player2Card" spacing="10" alignment="CENTER" style="-fx-padding: 20; -fx-background-color: #E8F5E8; -fx-border-color: #2196F3;">
+            <VBox fx:id="player2Card" spacing="10" alignment="CENTER"
+                  style="-fx-padding: 20; -fx-background-color: #E8F5E8; -fx-border-color: #2196F3;">
                 <Label fx:id="player2NameLabel" text="Игрок 2" style="-fx-font-size: 20; -fx-font-weight: bold;"/>
                 <Label text="Ожидание..." style="-fx-text-fill: #666;"/>
             </VBox>
         </HBox>
 
         <VBox fx:id="resultPanel" spacing="10" alignment="CENTER" visible="false">
-            <Label fx:id="firstPlayerLabel" text="" style="-fx-font-size: 24; -fx-font-weight: bold; -fx-text-fill: #2E8B57;"/>
+            <Label fx:id="firstPlayerLabel" text=""
+                   style="-fx-font-size: 24; -fx-font-weight: bold; -fx-text-fill: #2E8B57;"/>
             <Label text="начинает первым!" style="-fx-font-size: 18;"/>
 
-            <Label fx:id="countdownLabel" text="5" style="-fx-font-size: 48; -fx-font-weight: bold; -fx-text-fill: #4CAF50;"/>
+            <Label fx:id="countdownLabel" text="5"
+                   style="-fx-font-size: 48; -fx-font-weight: bold; -fx-text-fill: #4CAF50;"/>
 
-            <Button fx:id="continueButton" text="Начать игру" style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 16; -fx-padding: 10 30;" visible="false"/>
+            <Button fx:id="continueButton" text="Начать игру"
+                    style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 16; -fx-padding: 10 30;"
+                    visible="false"/>
         </VBox>
 
     </VBox>

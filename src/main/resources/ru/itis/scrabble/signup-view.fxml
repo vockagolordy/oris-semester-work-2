@@ -1,35 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.*?>
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<?import javafx.scene.text.*?>
-
-<VBox alignment="CENTER" spacing="20" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.itis.scrabble.controllers.SignupController">
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+<VBox alignment="CENTER" spacing="20" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="ru.itis.scrabble.controllers.SignupController">
     <padding>
-        <Insets bottom="50" left="50" right="50" top="50" />
+        <Insets bottom="50" left="50" right="50" top="50"/>
     </padding>
 
     <Label style="-fx-text-fill: #2E8B57;" text="SCRABBLE">
         <font>
-            <Font name="System Bold" size="36" />
+            <Font name="System Bold" size="36"/>
         </font>
     </Label>
 
     <VBox alignment="CENTER" spacing="15">
-        <TextField fx:id="usernameField" prefWidth="250" promptText="Имя пользователя" />
-        <PasswordField fx:id="passwordField" prefWidth="250" promptText="Пароль" />
-      <PasswordField fx:id="passwordField1" layoutX="10.0" layoutY="50.0" prefWidth="250" promptText="Повторите пароль" />
+        <TextField fx:id="usernameField" prefWidth="250" promptText="Имя пользователя"/>
+        <PasswordField fx:id="passwordField" prefWidth="250" promptText="Пароль"/>
+        <PasswordField fx:id="passwordField1" layoutX="10.0" layoutY="50.0" prefWidth="250"
+                       promptText="Повторите пароль"/>
     </VBox>
 
     <VBox alignment="CENTER" spacing="5">
-        <Button fx:id="registerButton" prefWidth="150" style="-fx-background-color: #2196F3; -fx-text-fill: white;" text="Зарегистрироваться" />
-      <Label text="Уже есть аккаут? ">
-         <VBox.margin>
-            <Insets top="10.0" />
-         </VBox.margin></Label>
-        <Button fx:id="loginButton" prefWidth="150" style="-fx-background-color: #4CAF50; -fx-text-fill: white;" text="Войти" />
+        <Button fx:id="registerButton" prefWidth="150" style="-fx-background-color: #2196F3; -fx-text-fill: white;"
+                text="Зарегистрироваться"/>
+        <Label text="Уже есть аккаут? ">
+            <VBox.margin>
+                <Insets top="10.0"/>
+            </VBox.margin>
+        </Label>
+        <Button fx:id="loginButton" prefWidth="150" style="-fx-background-color: #4CAF50; -fx-text-fill: white;"
+                text="Войти"/>
     </VBox>
 
-    <Label fx:id="errorLabel" style="-fx-text-fill: red;" visible="false" />
+    <Label fx:id="errorLabel" style="-fx-text-fill: red;" visible="false"/>
 </VBox>

@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
+
+<?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.text.Font?>
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="ru.itis.scrabble.controllers.GameOverController">
 
-<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.itis.scrabble.controllers.GameOverController">
-
-    <VBox alignment="CENTER" spacing="30" style="-fx-background-color: white; -fx-padding: 40; -fx-border-color: #2E8B57; -fx-border-width: 3; -fx-min-width: 500;">
+    <VBox alignment="CENTER" spacing="30"
+          style="-fx-background-color: white; -fx-padding: 40; -fx-border-color: #2E8B57; -fx-border-width: 3; -fx-min-width: 500;">
 
         <!-- Результат игры -->
         <VBox fx:id="victoryPanel" spacing="10" alignment="CENTER" visible="false">
@@ -47,16 +46,20 @@
 
             <GridPane hgap="20" vgap="10" style="-fx-padding: 10;">
                 <Label text="Ходов:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-                <Label fx:id="totalMovesLabel" text="0" GridPane.rowIndex="0" GridPane.columnIndex="1" style="-fx-font-weight: bold;"/>
+                <Label fx:id="totalMovesLabel" text="0" GridPane.rowIndex="0" GridPane.columnIndex="1"
+                       style="-fx-font-weight: bold;"/>
 
                 <Label text="Длительность:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                <Label fx:id="durationLabel" text="0:00" GridPane.rowIndex="1" GridPane.columnIndex="1" style="-fx-font-weight: bold;"/>
+                <Label fx:id="durationLabel" text="0:00" GridPane.rowIndex="1" GridPane.columnIndex="1"
+                       style="-fx-font-weight: bold;"/>
 
                 <Label text="Самое длинное слово:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                <Label fx:id="longestWordLabel" text="-" GridPane.rowIndex="2" GridPane.columnIndex="1" style="-fx-font-weight: bold;"/>
+                <Label fx:id="longestWordLabel" text="-" GridPane.rowIndex="2" GridPane.columnIndex="1"
+                       style="-fx-font-weight: bold;"/>
 
                 <Label text="Лучший ход:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-                <Label fx:id="bestMoveLabel" text="0" GridPane.rowIndex="3" GridPane.columnIndex="1" style="-fx-font-weight: bold;"/>
+                <Label fx:id="bestMoveLabel" text="0" GridPane.rowIndex="3" GridPane.columnIndex="1"
+                       style="-fx-font-weight: bold;"/>
             </GridPane>
         </VBox>
 

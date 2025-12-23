@@ -1,19 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.RadioButton?>
-<?import javafx.scene.control.ToggleGroup?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.shape.Rectangle?>
-<?import javafx.scene.text.Font?>
-<?import javafx.scene.text.Text?>
-<?import javafx.scene.paint.Color?>
 
-<VBox alignment="CENTER" spacing="20" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.itis.scrabble.client.controllers.TilesStylesController">
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.scene.text.*?>
+<VBox alignment="CENTER" spacing="20" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="ru.itis.scrabble.controllers.TilesStylesController">
     <padding>
         <Insets top="40" right="40" bottom="40" left="40"/>
     </padding>
@@ -27,7 +20,8 @@
     <Label text="Выберите стиль фишек, который будет использоваться во время игры"
            style="-fx-text-fill: #666; -fx-font-size: 14;"/>
 
-    <VBox alignment="CENTER" spacing="25" style="-fx-padding: 30; -fx-background-color: #F5F5F5; -fx-border-color: #2E8B57; -fx-border-width: 2;">
+    <VBox alignment="CENTER" spacing="25"
+          style="-fx-padding: 30; -fx-background-color: #F5F5F5; -fx-border-color: #2E8B57; -fx-border-width: 2;">
 
         <!-- Текущий выбранный стиль -->
         <VBox spacing="10" alignment="CENTER">
@@ -35,7 +29,8 @@
 
             <StackPane fx:id="currentStylePreview" style="-fx-padding: 10;">
                 <!-- Предпросмотр текущего стиля будет добавляться динамически -->
-                <Rectangle width="50" height="50" arcWidth="8" arcHeight="8" fill="#F5F5F5" stroke="#2E8B57" strokeWidth="2"/>
+                <Rectangle width="50" height="50" arcWidth="8" arcHeight="8" fill="#F5F5F5" stroke="#2E8B57"
+                           strokeWidth="2"/>
                 <Text text="A" fill="#2E8B57" style="-fx-font-weight: bold; -fx-font-size: 20;"/>
             </StackPane>
 
@@ -52,60 +47,78 @@
 
             <GridPane hgap="15" vgap="15" alignment="CENTER">
                 <!-- Классический стиль -->
-                <VBox spacing="10" alignment="CENTER" style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
-                    <RadioButton fx:id="classicRadio" text="Классический" toggleGroup="$stylesToggleGroup" style="-fx-font-weight: bold;"/>
-                    <StackPane > <!-- onMouseClicked="#selectClassicStyle" -->
-                        <Rectangle width="40" height="40" arcWidth="6" arcHeight="6" fill="#F5DEB3" stroke="#8B4513" strokeWidth="1.5"/>
+                <VBox spacing="10" alignment="CENTER"
+                      style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
+                    <RadioButton fx:id="classicRadio" text="Классический" toggleGroup="$stylesToggleGroup"
+                                 style="-fx-font-weight: bold;"/>
+                    <StackPane> <!-- onMouseClicked="#selectClassicStyle" -->
+                        <Rectangle width="40" height="40" arcWidth="6" arcHeight="6" fill="#F5DEB3" stroke="#8B4513"
+                                   strokeWidth="1.5"/>
                         <Text text="A" fill="#8B4513" style="-fx-font-weight: bold; -fx-font-size: 18;"/>
                     </StackPane>
                     <Label text="Деревянный вид" style="-fx-text-fill: #666; -fx-font-size: 12;"/>
                 </VBox>
 
                 <!-- Современный стиль -->
-                <VBox spacing="10" alignment="CENTER" style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
-                    <RadioButton fx:id="modernRadio" text="Современный" toggleGroup="$stylesToggleGroup" style="-fx-font-weight: bold;"/>
-                    <StackPane > <!-- onMouseClicked="#selectModernStyle" -->
-                        <Rectangle width="40" height="40" arcWidth="8" arcHeight="8" fill="#4CAF50" stroke="#2E7D32" strokeWidth="1.5"/>
+                <VBox spacing="10" alignment="CENTER"
+                      style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
+                    <RadioButton fx:id="modernRadio" text="Современный" toggleGroup="$stylesToggleGroup"
+                                 style="-fx-font-weight: bold;"/>
+                    <StackPane> <!-- onMouseClicked="#selectModernStyle" -->
+                        <Rectangle width="40" height="40" arcWidth="8" arcHeight="8" fill="#4CAF50" stroke="#2E7D32"
+                                   strokeWidth="1.5"/>
                         <Text text="A" fill="white" style="-fx-font-weight: bold; -fx-font-size: 18;"/>
                     </StackPane>
                     <Label text="Зеленые фишки" style="-fx-text-fill: #666; -fx-font-size: 12;"/>
                 </VBox>
 
                 <!-- Темный стиль -->
-                <VBox spacing="10" alignment="CENTER" style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
-                    <RadioButton fx:id="darkRadio" text="Темный" toggleGroup="$stylesToggleGroup" style="-fx-font-weight: bold;"/>
-                    <StackPane > <!-- onMouseClicked="#selectDarkStyle" -->
-                        <Rectangle width="40" height="40" arcWidth="6" arcHeight="6" fill="#2C3E50" stroke="#1A252F" strokeWidth="1.5"/>
+                <VBox spacing="10" alignment="CENTER"
+                      style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
+                    <RadioButton fx:id="darkRadio" text="Темный" toggleGroup="$stylesToggleGroup"
+                                 style="-fx-font-weight: bold;"/>
+                    <StackPane> <!-- onMouseClicked="#selectDarkStyle" -->
+                        <Rectangle width="40" height="40" arcWidth="6" arcHeight="6" fill="#2C3E50" stroke="#1A252F"
+                                   strokeWidth="1.5"/>
                         <Text text="A" fill="#ECF0F1" style="-fx-font-weight: bold; -fx-font-size: 18;"/>
                     </StackPane>
                     <Label text="Контрастный" style="-fx-text-fill: #666; -fx-font-size: 12;"/>
                 </VBox>
 
                 <!-- Пастельный стиль -->
-                <VBox spacing="10" alignment="CENTER" style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
-                    <RadioButton fx:id="pastelRadio" text="Пастельный" toggleGroup="$stylesToggleGroup" style="-fx-font-weight: bold;"/>
-                    <StackPane > <!-- onMouseClicked="#selectPastelStyle" -->
-                        <Rectangle width="40" height="40" arcWidth="10" arcHeight="10" fill="#E1BEE7" stroke="#9C27B0" strokeWidth="1.5"/>
+                <VBox spacing="10" alignment="CENTER"
+                      style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
+                    <RadioButton fx:id="pastelRadio" text="Пастельный" toggleGroup="$stylesToggleGroup"
+                                 style="-fx-font-weight: bold;"/>
+                    <StackPane> <!-- onMouseClicked="#selectPastelStyle" -->
+                        <Rectangle width="40" height="40" arcWidth="10" arcHeight="10" fill="#E1BEE7" stroke="#9C27B0"
+                                   strokeWidth="1.5"/>
                         <Text text="A" fill="#9C27B0" style="-fx-font-weight: bold; -fx-font-size: 18;"/>
                     </StackPane>
                     <Label text="Нежные цвета" style="-fx-text-fill: #666; -fx-font-size: 12;"/>
                 </VBox>
 
                 <!-- Океанский стиль -->
-                <VBox spacing="10" alignment="CENTER" style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
-                    <RadioButton fx:id="oceanRadio" text="Океанский" toggleGroup="$stylesToggleGroup" style="-fx-font-weight: bold;"/>
-                    <StackPane > <!-- onMouseClicked="#selectOceanStyle" -->
-                        <Rectangle width="40" height="40" arcWidth="6" arcHeight="6" fill="#2196F3" stroke="#0D47A1" strokeWidth="1.5"/>
+                <VBox spacing="10" alignment="CENTER"
+                      style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
+                    <RadioButton fx:id="oceanRadio" text="Океанский" toggleGroup="$stylesToggleGroup"
+                                 style="-fx-font-weight: bold;"/>
+                    <StackPane> <!-- onMouseClicked="#selectOceanStyle" -->
+                        <Rectangle width="40" height="40" arcWidth="6" arcHeight="6" fill="#2196F3" stroke="#0D47A1"
+                                   strokeWidth="1.5"/>
                         <Text text="A" fill="white" style="-fx-font-weight: bold; -fx-font-size: 18;"/>
                     </StackPane>
                     <Label text="Морская тема" style="-fx-text-fill: #666; -fx-font-size: 12;"/>
                 </VBox>
 
                 <!-- Осенний стиль -->
-                <VBox spacing="10" alignment="CENTER" style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
-                    <RadioButton fx:id="autumnRadio" text="Осенний" toggleGroup="$stylesToggleGroup" style="-fx-font-weight: bold;"/>
-                    <StackPane >  <!-- onMouseClicked="#selectAutumnStyle" -->
-                        <Rectangle width="40" height="40" arcWidth="6" arcHeight="6" fill="#FF9800" stroke="#EF6C00" strokeWidth="1.5"/>
+                <VBox spacing="10" alignment="CENTER"
+                      style="-fx-padding: 15; -fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 5;">
+                    <RadioButton fx:id="autumnRadio" text="Осенний" toggleGroup="$stylesToggleGroup"
+                                 style="-fx-font-weight: bold;"/>
+                    <StackPane>  <!-- onMouseClicked="#selectAutumnStyle" -->
+                        <Rectangle width="40" height="40" arcWidth="6" arcHeight="6" fill="#FF9800" stroke="#EF6C00"
+                                   strokeWidth="1.5"/>
                         <Text text="A" fill="white" style="-fx-font-weight: bold; -fx-font-size: 18;"/>
                     </StackPane>
                     <Label text="Теплые тона" style="-fx-text-fill: #666; -fx-font-size: 12;"/>
@@ -115,37 +128,46 @@
 
         <!-- Предпросмотр на игровом поле -->
         <VBox spacing="10" alignment="CENTER">
-            <Label text="Предпросмотр на поле:" style="-fx-font-weight: bold; -fx-font-size: 16; -fx-text-fill: #2E8B57;"/>
+            <Label text="Предпросмотр на поле:"
+                   style="-fx-font-weight: bold; -fx-font-size: 16; -fx-text-fill: #2E8B57;"/>
 
-            <GridPane hgap="5" vgap="5" alignment="CENTER" style="-fx-padding: 15; -fx-background-color: #1B5E20; -fx-border-color: #2E8B57; -fx-border-width: 2;">
+            <GridPane hgap="5" vgap="5" alignment="CENTER"
+                      style="-fx-padding: 15; -fx-background-color: #1B5E20; -fx-border-color: #2E8B57; -fx-border-width: 2;">
                 <!-- Миниатюрное игровое поле с фишками для предпросмотра -->
                 <StackPane GridPane.columnIndex="2" GridPane.rowIndex="2">
-                    <Rectangle width="25" height="25" arcWidth="4" arcHeight="4" fill="#4CAF50" stroke="#2E7D32" strokeWidth="1"/>
+                    <Rectangle width="25" height="25" arcWidth="4" arcHeight="4" fill="#4CAF50" stroke="#2E7D32"
+                               strokeWidth="1"/>
                     <Text text="С" fill="white" style="-fx-font-size: 14; -fx-font-weight: bold;"/>
                 </StackPane>
                 <StackPane GridPane.columnIndex="3" GridPane.rowIndex="2">
-                    <Rectangle width="25" height="25" arcWidth="4" arcHeight="4" fill="#4CAF50" stroke="#2E7D32" strokeWidth="1"/>
+                    <Rectangle width="25" height="25" arcWidth="4" arcHeight="4" fill="#4CAF50" stroke="#2E7D32"
+                               strokeWidth="1"/>
                     <Text text="Л" fill="white" style="-fx-font-size: 14; -fx-font-weight: bold;"/>
                 </StackPane>
                 <StackPane GridPane.columnIndex="4" GridPane.rowIndex="2">
-                    <Rectangle width="25" height="25" arcWidth="4" arcHeight="4" fill="#4CAF50" stroke="#2E7D32" strokeWidth="1"/>
+                    <Rectangle width="25" height="25" arcWidth="4" arcHeight="4" fill="#4CAF50" stroke="#2E7D32"
+                               strokeWidth="1"/>
                     <Text text="О" fill="white" style="-fx-font-size: 14; -fx-font-weight: bold;"/>
                 </StackPane>
                 <StackPane GridPane.columnIndex="5" GridPane.rowIndex="2">
-                    <Rectangle width="25" height="25" arcWidth="4" arcHeight="4" fill="#4CAF50" stroke="#2E7D32" strokeWidth="1"/>
+                    <Rectangle width="25" height="25" arcWidth="4" arcHeight="4" fill="#4CAF50" stroke="#2E7D32"
+                               strokeWidth="1"/>
                     <Text text="В" fill="white" style="-fx-font-size: 14; -fx-font-weight: bold;"/>
                 </StackPane>
                 <StackPane GridPane.columnIndex="6" GridPane.rowIndex="2">
-                    <Rectangle width="25" height="25" arcWidth="4" arcHeight="4" fill="#4CAF50" stroke="#2E7D32" strokeWidth="1"/>
+                    <Rectangle width="25" height="25" arcWidth="4" arcHeight="4" fill="#4CAF50" stroke="#2E7D32"
+                               strokeWidth="1"/>
                     <Text text="О" fill="white" style="-fx-font-size: 14; -fx-font-weight: bold;"/>
                 </StackPane>
             </GridPane>
         </VBox>
 
         <!-- Информация о стиле -->
-        <HBox spacing="20" alignment="CENTER" style="-fx-padding: 15; -fx-background-color: #E8F5E9; -fx-border-color: #4CAF50;">
+        <HBox spacing="20" alignment="CENTER"
+              style="-fx-padding: 15; -fx-background-color: #E8F5E9; -fx-border-color: #4CAF50;">
             <VBox spacing="5">
-                <Label fx:id="styleDescription" text="Классический деревянный стиль фишек, напоминающий оригинальную настольную игру."
+                <Label fx:id="styleDescription"
+                       text="Классический деревянный стиль фишек, напоминающий оригинальную настольную игру."
                        style="-fx-text-fill: #2E7D32;" wrapText="true" prefWidth="300"/>
                 <Label fx:id="styleEffects" text="Влияние на геймплей: только визуальное"
                        style="-fx-text-fill: #666; -fx-font-size: 12;"/>
