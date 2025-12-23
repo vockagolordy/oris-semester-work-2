@@ -8,13 +8,9 @@ public interface UserRepository {
 
     void update(User user);
 
-    void deleteById(Long id);
-
     User findById(Long id);
 
     User findByUsername(String username);
-
-    boolean existsById(Long id);
 
     boolean existsByUsername(String username);
 }
