@@ -27,12 +27,15 @@ public class Player {
 
     private int score;
 
+    private int lastPoints;
+
     private final List<Tile> rack;
 
     public Player(Long userId, String username) {
         this.userId = userId;
         this.username = username;
         this.score = 0;
+        this.lastPoints = 0;
         this.rack = new ArrayList<>();
     }
 
@@ -49,11 +52,16 @@ public class Player {
     }
 
     public void increaseScore(int points) {
+        lastPoints = points;
         score += points;
     }
 
     public boolean isConnected() {
         return isConnected;
+    }
+
+    public int getLastPoints() {
+        return lastPoints;
     }
 
     public List<Tile> getRack() {

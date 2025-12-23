@@ -7,6 +7,7 @@ public class GameSession {
     private final Bag bag;
     private final List<Player> players;
     private int currentPlayerIndex;
+    private int localPlayerIndex;
     private boolean isGameOver;
 
     public GameSession(Board board, Bag bag, List<Player> players) {
@@ -23,6 +24,10 @@ public class GameSession {
 
     public Player getCurrentPlayer() {
         return players.get(currentPlayerIndex);
+    }
+
+    public Player getLocalPlayer() {
+        return players.get(localPlayerIndex);
     }
 
     // Геттеры
