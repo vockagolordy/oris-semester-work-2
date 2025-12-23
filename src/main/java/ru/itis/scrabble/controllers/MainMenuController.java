@@ -5,6 +5,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 import java.util.Map;
 
@@ -23,11 +24,11 @@ public class MainMenuController extends BaseController {
     }
 
     private void setupEventHandlers() {
-        createRoomButton.setOnAction(event -> navigateToCreateRoom());
-        joinRoomButton.setOnAction(event -> navigateToRoomList());
-        profileButton.setOnAction(event -> navigateToProfile());
-        statsButton.setOnAction(event -> navigateToTilesStyles());
-        logoutButton.setOnAction(event -> handleLogout());
+        createRoomButton.setOnAction(_ -> navigateToCreateRoom());
+        joinRoomButton.setOnAction(_ -> navigateToRoomList());
+        profileButton.setOnAction(_ -> navigateToProfile());
+        statsButton.setOnAction(_ -> navigateToTilesStyles());
+        logoutButton.setOnAction(_ -> handleLogout());
     }
 
     private void navigateToCreateRoom() {
@@ -48,7 +49,7 @@ public class MainMenuController extends BaseController {
 
     private void handleLogout() {
         // Отправляем команду выхода
-        sendJsonCommand("LOGOUT", Map.of("userId", currentUserId));
+        sendNetworkMessage("LOGOUT", Map.of("userId", currentUserId));
 
         // Сбрасываем данные пользователя
         navigator.setCurrentUser(null, null);
@@ -68,12 +69,13 @@ public class MainMenuController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(String message) {
+    public void handleNetworkMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             // Обработка сообщений, специфичных для главного меню
-            if (message.startsWith("INVITATION|")) {
+            String payload = message.payload();
+            if (payload.startsWith("INVITATION|")) {
                 // Приглашение в комнату от другого игрока
-                String roomInfo = message.substring("INVITATION|".length());
+                String roomInfo = payload.substring("INVITATION|".length());
                 navigator.showDialog("Приглашение в игру",
                     "Вас приглашают в комнату: " + roomInfo + "\n" +
                     "Перейти в список комнат?");

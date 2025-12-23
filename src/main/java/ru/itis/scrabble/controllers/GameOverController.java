@@ -9,8 +9,10 @@ import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.GridPane;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 import java.util.Map;
+import java.util.HashMap;
 
 public class GameOverController extends BaseController {
 
@@ -49,9 +51,9 @@ public class GameOverController extends BaseController {
     }
 
     private void setupEventHandlers() {
-        playAgainButton.setOnAction(event -> playAgain());
-        mainMenuButton.setOnAction(event -> goToMainMenu());
-        statsButton.setOnAction(event -> showStatistics());
+        playAgainButton.setOnAction(_ -> playAgain());
+        mainMenuButton.setOnAction(_ -> goToMainMenu());
+        statsButton.setOnAction(_ -> showStatistics());
     }
 
     @Override
@@ -139,7 +141,7 @@ public class GameOverController extends BaseController {
             "currentUserId", currentUserId
         );
 
-        sendJsonCommand("GAME_OVER_CONFIRMED", gameOverData);
+        sendNetworkMessage("GAME_OVER_CONFIRMED", gameOverData);
     }
 
     private void playAgain() {
@@ -149,7 +151,7 @@ public class GameOverController extends BaseController {
             "playerId", currentUserId
         );
 
-        sendJsonCommand("PLAY_AGAIN_REQUEST", playAgainData);
+        sendNetworkMessage("PLAY_AGAIN_REQUEST", playAgainData);
 
         playAgainButton.setDisable(true);
         playAgainButton.setText("Ожидание ответа...");
@@ -158,7 +160,7 @@ public class GameOverController extends BaseController {
     private void goToMainMenu() {
         // Отправляем сообщение о выходе из комнаты
         if (roomPort > 0) {
-            sendJsonCommand("LEAVE_ROOM_AFTER_GAME", Map.of(
+            sendNetworkMessage("LEAVE_ROOM_AFTER_GAME", Map.of(
                 "roomPort", roomPort,
                 "userId", currentUserId
             ));
@@ -173,12 +175,13 @@ public class GameOverController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(String message) {
+    public void handleNetworkMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             try {
-                if (message.startsWith("PLAY_AGAIN_ACCEPTED|")) {
+                String payload = message.payload();
+                if (payload.startsWith("PLAY_AGAIN_ACCEPTED|")) {
                     // Оба игрока согласились играть снова
-                    String json = message.substring("PLAY_AGAIN_ACCEPTED|".length());
+                    String json = payload.substring("PLAY_AGAIN_ACCEPTED|".length());
                     Map<String, Object> response = new ObjectMapper().readValue(json, Map.class);
 
                     int newRoomPort = (int) response.get("newRoomPort");
@@ -186,28 +189,29 @@ public class GameOverController extends BaseController {
                     String opponentName = (String) response.get("opponentName");
 
                     // Переходим в комнату ожидания новой игры
-                    navigator.navigate(View.WAITING_ROOM, Map.of(
-                        "port", newRoomPort,
-                        "hostId", currentUserId,
-                        "hostName", currentUsername,
-                        "opponentId", opponentId,
-                        "opponentName", opponentName
-                    ));
+                    Map<String, Object> roomData = new HashMap<>();
+                    roomData.put("port", newRoomPort);
+                    roomData.put("hostId", currentUserId);
+                    roomData.put("hostName", currentUsername);
+                    roomData.put("opponentId", opponentId);
+                    roomData.put("opponentName", opponentName);
 
-                } else if (message.startsWith("PLAY_AGAIN_REJECTED|")) {
+                    navigator.navigate(View.WAITING_ROOM, roomData);
+
+                } else if (payload.startsWith("PLAY_AGAIN_REJECTED|")) {
                     // Противник отказался играть снова
-                    String opponentName = message.substring("PLAY_AGAIN_REJECTED|".length());
+                    String opponentName = payload.substring("PLAY_AGAIN_REJECTED|".length());
                     navigator.showDialog("Повторная игра",
                         opponentName + " отказался играть снова");
                     playAgainButton.setDisable(false);
                     playAgainButton.setText("Играть снова");
 
-                } else if (message.startsWith("STATISTICS_UPDATED|")) {
+                } else if (payload.startsWith("STATISTICS_UPDATED|")) {
                     // Статистика обновлена на сервере
                     System.out.println("Статистика игрока обновлена");
 
-                } else if (message.startsWith("ERROR|")) {
-                    String error = message.substring("ERROR|".length());
+                } else if (payload.startsWith("ERROR|")) {
+                    String error = payload.substring("ERROR|".length());
                     navigator.showError("Ошибка", error);
                     playAgainButton.setDisable(false);
                     playAgainButton.setText("Играть снова");

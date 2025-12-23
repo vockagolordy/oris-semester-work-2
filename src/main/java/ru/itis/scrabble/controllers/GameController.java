@@ -7,13 +7,13 @@ import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
 import ru.itis.scrabble.dto.GameStateDTO;
 import ru.itis.scrabble.dto.TilePlacementDTO;
 import ru.itis.scrabble.models.*;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 import java.util.*;
 
@@ -79,15 +79,16 @@ public class GameController extends BaseController {
     public void initialize(java.net.URL location, java.util.ResourceBundle resources) {
         setupEventHandlers();
         initializeBoard();
+        
     }
 
     private void setupEventHandlers() {
-        confirmMoveButton.setOnAction(event -> confirmMove());
-        skipTurnButton.setOnAction(event -> skipTurn());
-        changeTilesButton.setOnAction(event -> changeTiles());
-        surrenderButton.setOnAction(event -> surrender());
-        offerDrawButton.setOnAction(event -> offerDraw());
-        exitButton.setOnAction(event -> exitGame());
+        confirmMoveButton.setOnAction(_ -> confirmMove());
+        skipTurnButton.setOnAction(_ -> skipTurn());
+        changeTilesButton.setOnAction(_ -> changeTiles());
+        surrenderButton.setOnAction(_ -> surrender());
+        offerDrawButton.setOnAction(_ -> offerDraw());
+        exitButton.setOnAction(_ -> exitGame());
     }
 
     @Override
@@ -110,7 +111,7 @@ public class GameController extends BaseController {
             startGameTimer();
 
             // Запрашиваем актуальное состояние игры
-            sendJsonCommand("GET_GAME_STATE", Map.of("roomPort", roomPort));
+                sendNetworkMessage("GET_GAME_STATE", Map.of("roomPort", roomPort));
         }
     }
 
@@ -191,7 +192,7 @@ public class GameController extends BaseController {
         updateCellUI(x, y, tile);
 
         // Отправляем предпросмотр на сервер (опционально)
-        sendJsonCommand("TILE_PREVIEW", Map.of(
+        sendNetworkMessage("TILE_PREVIEW", Map.of(
             "placements", currentPlacements,
             "roomPort", roomPort,
             "playerId", currentUserId
@@ -220,7 +221,7 @@ public class GameController extends BaseController {
         }
 
         // Отправляем ход на сервер
-        sendJsonCommand("MAKE_MOVE", Map.of(
+        sendNetworkMessage("MAKE_MOVE", Map.of(
             "roomPort", roomPort,
             "playerId", currentUserId,
             "placements", currentPlacements
@@ -236,7 +237,7 @@ public class GameController extends BaseController {
             return;
         }
 
-        sendJsonCommand("SKIP_TURN", Map.of(
+        sendNetworkMessage("SKIP_TURN", Map.of(
             "roomPort", roomPort,
             "playerId", currentUserId
         ));
@@ -256,7 +257,7 @@ public class GameController extends BaseController {
 
         dialog.showAndWait().ifPresent(letters -> {
             if (!letters.isEmpty()) {
-                sendJsonCommand("CHANGE_TILES", Map.of(
+                sendNetworkMessage("CHANGE_TILES", Map.of(
                     "roomPort", roomPort,
                     "playerId", currentUserId,
                     "letters", letters.toUpperCase()
@@ -273,7 +274,7 @@ public class GameController extends BaseController {
 
         alert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                sendJsonCommand("SURRENDER", Map.of(
+                sendNetworkMessage("SURRENDER", Map.of(
                     "roomPort", roomPort,
                     "playerId", currentUserId
                 ));
@@ -282,7 +283,7 @@ public class GameController extends BaseController {
     }
 
     private void offerDraw() {
-        sendJsonCommand("OFFER_DRAW", Map.of(
+        sendNetworkMessage("OFFER_DRAW", Map.of(
             "roomPort", roomPort,
             "playerId", currentUserId
         ));
@@ -299,7 +300,7 @@ public class GameController extends BaseController {
 
         alert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                sendJsonCommand("EXIT_GAME", Map.of(
+                sendNetworkMessage("EXIT_GAME", Map.of(
                     "roomPort", roomPort,
                     "playerId", currentUserId
                 ));
@@ -430,7 +431,7 @@ public class GameController extends BaseController {
                         // Время вышло
                         gameTimer.cancel();
                         if (isMyTurn()) {
-                            sendJsonCommand("TIME_OUT", Map.of(
+                            sendNetworkMessage("TIME_OUT", Map.of(
                                 "roomPort", roomPort,
                                 "playerId", currentUserId
                             ));
@@ -471,38 +472,39 @@ public class GameController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(String message) {
+    public void handleNetworkMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
+                String payload = message.payload();
 
-                if (message.startsWith("GAME_STATE_UPDATE|")) {
-                    String json = message.substring("GAME_STATE_UPDATE|".length());
+                if (payload.startsWith("GAME_STATE_UPDATE|")) {
+                    String json = payload.substring("GAME_STATE_UPDATE|".length());
                     GameStateDTO gameState = mapper.readValue(json, GameStateDTO.class);
                     updateGameState(gameState);
                     turnCount++;
 
-                } else if (message.startsWith("MOVE_ACCEPTED|")) {
-                    String json = message.substring("MOVE_ACCEPTED|".length());
+                } else if (payload.startsWith("MOVE_ACCEPTED|")) {
+                    String json = payload.substring("MOVE_ACCEPTED|".length());
                     Map<String, Object> response = mapper.readValue(json, Map.class);
 
                     int score = ((Number) response.get("score")).intValue();
                     navigator.showDialog("Ход принят",
                         "Вы получили " + score + " очков!");
 
-                } else if (message.startsWith("MOVE_REJECTED|")) {
-                    String error = message.substring("MOVE_REJECTED|".length());
+                } else if (payload.startsWith("MOVE_REJECTED|")) {
+                    String error = payload.substring("MOVE_REJECTED|".length());
                     navigator.showError("Ход отклонен", error);
                     confirmMoveButton.setDisable(false);
 
-                } else if (message.startsWith("TURN_SKIPPED|")) {
+                } else if (payload.startsWith("TURN_SKIPPED|")) {
                     navigator.showDialog("Ход пропущен", "Вы пропустили ход");
 
-                } else if (message.startsWith("TILES_CHANGED|")) {
+                } else if (payload.startsWith("TILES_CHANGED|")) {
                     navigator.showDialog("Фишки заменены", "Фишки успешно заменены");
 
-                } else if (message.startsWith("DRAW_OFFERED|")) {
-                    String json = message.substring("DRAW_OFFERED|".length());
+                } else if (payload.startsWith("DRAW_OFFERED|")) {
+                    String json = payload.substring("DRAW_OFFERED|".length());
                     Map<String, Object> response = mapper.readValue(json, Map.class);
 
                     String opponentName = (String) response.get("opponentName");
@@ -514,30 +516,30 @@ public class GameController extends BaseController {
 
                     alert.showAndWait().ifPresent(responseBtn -> {
                         boolean accept = responseBtn == ButtonType.OK;
-                        sendJsonCommand("DRAW_RESPONSE", Map.of(
+                        sendNetworkMessage("DRAW_RESPONSE", Map.of(
                             "roomPort", roomPort,
                             "playerId", currentUserId,
                             "accept", accept
                         ));
                     });
 
-                } else if (message.startsWith("DRAW_ACCEPTED|")) {
+                } else if (payload.startsWith("DRAW_ACCEPTED|")) {
                     navigator.showDialog("Ничья", "Оба игрока согласились на ничью");
                     endGame();
 
-                } else if (message.startsWith("DRAW_REJECTED|")) {
+                } else if (payload.startsWith("DRAW_REJECTED|")) {
                     navigator.showDialog("Ничья отклонена", "Противник отклонил предложение ничьей");
 
-                } else if (message.startsWith("PLAYER_SURRENDERED|")) {
-                    String json = message.substring("PLAYER_SURRENDERED|".length());
+                } else if (payload.startsWith("PLAYER_SURRENDERED|")) {
+                    String json = payload.substring("PLAYER_SURRENDERED|".length());
                     Map<String, Object> response = mapper.readValue(json, Map.class);
 
                     String playerName = (String) response.get("playerName");
                     navigator.showDialog("Сдача", playerName + " сдался!");
                     endGame();
 
-                } else if (message.startsWith("GAME_OVER|")) {
-                    String json = message.substring("GAME_OVER|".length());
+                } else if (payload.startsWith("GAME_OVER|")) {
+                    String json = payload.substring("GAME_OVER|".length());
                     Map<String, Object> response = mapper.readValue(json, Map.class);
 
                     Long winnerId = ((Number) response.get("winnerId")).longValue();
@@ -550,8 +552,8 @@ public class GameController extends BaseController {
 
                     endGame();
 
-                } else if (message.startsWith("ERROR|")) {
-                    String error = message.substring("ERROR|".length());
+                } else if (payload.startsWith("ERROR|")) {
+                    String error = payload.substring("ERROR|".length());
                     navigator.showError("Ошибка", error);
                     confirmMoveButton.setDisable(false);
                 }

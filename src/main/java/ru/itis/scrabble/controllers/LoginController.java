@@ -1,6 +1,5 @@
 package ru.itis.scrabble.controllers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -8,6 +7,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 import java.util.Map;
 
@@ -25,12 +25,12 @@ public class LoginController extends BaseController {
     }
 
     private void setupEventHandlers() {
-        loginButton.setOnAction(event -> handleLogin());
-        registerButton.setOnAction(event -> navigateToSignup());
+        loginButton.setOnAction(_ -> handleLogin());
+        registerButton.setOnAction(_ -> navigateToSignup());
 
         // Обработка нажатия Enter в полях ввода
-        usernameField.setOnAction(event -> handleLogin());
-        passwordField.setOnAction(event -> handleLogin());
+        usernameField.setOnAction(_ -> handleLogin());
+        passwordField.setOnAction(_ -> handleLogin());
     }
 
     private void handleLogin() {
@@ -52,7 +52,7 @@ public class LoginController extends BaseController {
             "password", password
         );
 
-        sendJsonCommand("AUTH", authData);
+        sendNetworkMessage("AUTH", authData);
     }
 
     private void navigateToSignup() {
@@ -65,12 +65,13 @@ public class LoginController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(String message) {
+    public void handleNetworkMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             try {
-                if (message.startsWith("AUTH_SUCCESS|")) {
+                String payload = message.payload();
+                if (payload.startsWith("AUTH_SUCCESS|")) {
                     // Формат: AUTH_SUCCESS|{"userId":123,"username":"name"}
-                    String json = message.substring("AUTH_SUCCESS|".length());
+                    String json = payload.substring("AUTH_SUCCESS|".length());
                     Map<String, Object> response = objectMapper.readValue(json, Map.class);
 
                     Long userId = ((Number) response.get("userId")).longValue();
@@ -82,13 +83,13 @@ public class LoginController extends BaseController {
                     // Переходим в главное меню
                     navigator.navigate(View.MAIN_MENU);
 
-                } else if (message.startsWith("AUTH_ERROR|")) {
-                    String error = message.substring("AUTH_ERROR|".length());
+                } else if (payload.startsWith("AUTH_ERROR|")) {
+                    String error = payload.substring("AUTH_ERROR|".length());
                     showError("Ошибка авторизации: " + error);
                     loginButton.setDisable(false);
 
-                } else if (message.startsWith("ERROR|")) {
-                    String error = message.substring("ERROR|".length());
+                } else if (payload.startsWith("ERROR|")) {
+                    String error = payload.substring("ERROR|".length());
                     showError("Ошибка: " + error);
                     loginButton.setDisable(false);
                 }

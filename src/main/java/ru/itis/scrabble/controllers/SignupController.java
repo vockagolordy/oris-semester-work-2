@@ -1,12 +1,12 @@
 package ru.itis.scrabble.controllers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import ru.itis.scrabble.dto.NetworkMessage;
 import ru.itis.scrabble.navigation.View;
 
 import java.util.Map;
@@ -26,13 +26,13 @@ public class SignupController extends BaseController {
     }
 
     private void setupEventHandlers() {
-        registerButton.setOnAction(event -> handleRegistration());
-        loginButton.setOnAction(event -> navigateToLogin());
+        registerButton.setOnAction(_ -> handleRegistration());
+        loginButton.setOnAction(_ -> navigateToLogin());
 
         // Обработка нажатия Enter
-        usernameField.setOnAction(event -> handleRegistration());
-        passwordField.setOnAction(event -> handleRegistration());
-        passwordField1.setOnAction(event -> handleRegistration());
+        usernameField.setOnAction(_ -> handleRegistration());
+        passwordField.setOnAction(_ -> handleRegistration());
+        passwordField1.setOnAction(_ -> handleRegistration());
     }
 
     private void handleRegistration() {
@@ -69,7 +69,7 @@ public class SignupController extends BaseController {
             "password", password
         );
 
-        sendJsonCommand("REGISTER", regData);
+        sendNetworkMessage("REGISTER", regData);
     }
 
     private void navigateToLogin() {
@@ -82,12 +82,13 @@ public class SignupController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(String message) {
+    public void handleNetworkMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             try {
-                if (message.startsWith("REGISTER_SUCCESS|")) {
+                String payload = message.payload();
+                if (payload.startsWith("REGISTER_SUCCESS|")) {
                     // Формат: REGISTER_SUCCESS|{"userId":123,"username":"name"}
-                    String json = message.substring("REGISTER_SUCCESS|".length());
+                    String json = payload.substring("REGISTER_SUCCESS|".length());
                     Map<String, Object> response = objectMapper.readValue(json, Map.class);
 
                     Long userId = ((Number) response.get("userId")).longValue();
@@ -97,13 +98,13 @@ public class SignupController extends BaseController {
                     navigator.setCurrentUser(userId, username);
                     navigator.navigate(View.MAIN_MENU);
 
-                } else if (message.startsWith("REGISTER_ERROR|")) {
-                    String error = message.substring("REGISTER_ERROR|".length());
+                } else if (payload.startsWith("REGISTER_ERROR|")) {
+                    String error = payload.substring("REGISTER_ERROR|".length());
                     showError("Ошибка регистрации: " + error);
                     registerButton.setDisable(false);
 
-                } else if (message.startsWith("ERROR|")) {
-                    String error = message.substring("ERROR|".length());
+                } else if (payload.startsWith("ERROR|")) {
+                    String error = payload.substring("ERROR|".length());
                     showError("Ошибка: " + error);
                     registerButton.setDisable(false);
                 }

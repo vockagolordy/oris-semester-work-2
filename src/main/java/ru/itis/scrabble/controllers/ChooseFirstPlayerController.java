@@ -1,6 +1,5 @@
 package ru.itis.scrabble.controllers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -8,6 +7,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.VBox;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 import java.util.Map;
 import java.util.Random;
@@ -38,7 +38,7 @@ public class ChooseFirstPlayerController extends BaseController {
     }
 
     private void setupEventHandlers() {
-        continueButton.setOnAction(event -> startGame());
+        continueButton.setOnAction(_ -> startGame());
     }
 
     @Override
@@ -83,7 +83,7 @@ public class ChooseFirstPlayerController extends BaseController {
                     "firstPlayerName", firstPlayerName
                 );
 
-                sendJsonCommand("FIRST_PLAYER_DETERMINED", result);
+                sendNetworkMessage("FIRST_PLAYER_DETERMINED", result);
 
                 // Показываем результат в UI
                 Platform.runLater(() -> {
@@ -131,16 +131,17 @@ public class ChooseFirstPlayerController extends BaseController {
             "roomPort", roomPort
         );
 
-        sendJsonCommand("START_GAME_SESSION", startMsg);
+        sendNetworkMessage("START_GAME_SESSION", startMsg);
     }
 
     @Override
-    public void handleNetworkMessage(String message) {
+    public void handleNetworkMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             try {
-                if (message.startsWith("GAME_SESSION_STARTED|")) {
+                String payload = message.payload();
+                if (payload.startsWith("GAME_SESSION_STARTED|")) {
                     // Игровая сессия создана, переходим в игру
-                    String json = message.substring("GAME_SESSION_STARTED|".length());
+                    String json = payload.substring("GAME_SESSION_STARTED|".length());
                     Map<String, Object> response = objectMapper.readValue(json, Map.class);
 
                     navigator.navigate(View.GAME, Map.of(
@@ -152,8 +153,8 @@ public class ChooseFirstPlayerController extends BaseController {
                         "gameState", response.get("gameState")
                     ));
 
-                } else if (message.startsWith("ERROR|")) {
-                    String error = message.substring("ERROR|".length());
+                } else if (payload.startsWith("ERROR|")) {
+                    String error = payload.substring("ERROR|".length());
                     navigator.showError("Ошибка", error);
                 }
             } catch (Exception e) {

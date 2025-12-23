@@ -10,6 +10,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.VBox;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 import java.util.*;
 
@@ -41,10 +42,10 @@ public class WaitingRoomController extends BaseController {
     }
 
     private void setupEventHandlers() {
-        readyButton.setOnAction(event -> toggleReady());
-        startButton.setOnAction(event -> startGame());
-        leaveButton.setOnAction(event -> leaveRoom());
-        reconnectButton.setOnAction(event -> reconnectToGame());
+        readyButton.setOnAction(_ -> toggleReady());
+        startButton.setOnAction(_ -> startGame());
+        leaveButton.setOnAction(_ -> leaveRoom());
+        reconnectButton.setOnAction(_ -> reconnectToGame());
     }
 
     @Override
@@ -70,10 +71,10 @@ public class WaitingRoomController extends BaseController {
                 "userId", currentUserId,
                 "username", currentUsername
             );
-            sendJsonCommand("ROOM_JOIN", joinMsg);
+            sendNetworkMessage("ROOM_JOIN", joinMsg);
 
             // Запрашиваем обновленную информацию о комнате
-            sendJsonCommand("GET_ROOM_INFO", Map.of("port", roomPort));
+            sendNetworkMessage("GET_ROOM_INFO", Map.of("port", roomPort));
 
             startTimer();
         }
@@ -112,7 +113,7 @@ public class WaitingRoomController extends BaseController {
             "isReady", isReady
         );
 
-        sendJsonCommand("PLAYER_READY", readyMsg);
+        sendNetworkMessage("PLAYER_READY", readyMsg);
 
         if (isReady) {
             readyButton.setText("Не готов");
@@ -135,7 +136,7 @@ public class WaitingRoomController extends BaseController {
             "hostId", hostId
         );
 
-        sendJsonCommand("START_GAME", startMsg);
+        sendNetworkMessage("START_GAME", startMsg);
 
         // Показываем индикатор загрузки
         readyStatusLabel.setText("Начинаем игру...");
@@ -149,7 +150,7 @@ public class WaitingRoomController extends BaseController {
             "userId", currentUserId
         );
 
-        sendJsonCommand("LEAVE_ROOM", leaveMsg);
+        sendNetworkMessage("LEAVE_ROOM", leaveMsg);
 
         navigator.navigate(View.MAIN_MENU);
     }
@@ -161,7 +162,7 @@ public class WaitingRoomController extends BaseController {
             "userId", currentUserId
         );
 
-        sendJsonCommand("RECONNECT", reconnectMsg);
+        sendNetworkMessage("RECONNECT", reconnectMsg);
     }
 
     private void startTimer() {
@@ -184,11 +185,12 @@ public class WaitingRoomController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(String message) {
+    public void handleNetworkMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             try {
-                if (message.startsWith("PLAYER_JOINED|")) {
-                    String json = message.substring("PLAYER_JOINED|".length());
+                String payload = message.payload();
+                if (payload.startsWith("PLAYER_JOINED|")) {
+                    String json = payload.substring("PLAYER_JOINED|".length());
                     Map<String, Object> response = objectMapper.readValue(json, Map.class);
 
                     opponentName = (String) response.get("username");
@@ -196,8 +198,8 @@ public class WaitingRoomController extends BaseController {
 
                     updateUI();
 
-                } else if (message.startsWith("PLAYER_LEFT|")) {
-                    String json = message.substring("PLAYER_LEFT|".length());
+                } else if (payload.startsWith("PLAYER_LEFT|")) {
+                    String json = payload.substring("PLAYER_LEFT|".length());
                     Map<String, Object> response = objectMapper.readValue(json, Map.class);
 
                     opponentName = null;
@@ -206,8 +208,8 @@ public class WaitingRoomController extends BaseController {
                     updateUI();
                     navigator.showDialog("Игрок вышел", "Другой игрок покинул комнату");
 
-                } else if (message.startsWith("PLAYER_READY_CHANGED|")) {
-                    String json = message.substring("PLAYER_READY_CHANGED|".length());
+                } else if (payload.startsWith("PLAYER_READY_CHANGED|")) {
+                    String json = payload.substring("PLAYER_READY_CHANGED|".length());
                     Map<String, Object> response = objectMapper.readValue(json, Map.class);
 
                     Long playerId = ((Number) response.get("userId")).longValue();
@@ -219,7 +221,7 @@ public class WaitingRoomController extends BaseController {
                         );
                     }
 
-                } else if (message.startsWith("GAME_STARTING|")) {
+                } else if (payload.startsWith("GAME_STARTING|")) {
                     // Игра начинается, переходим к выбору первого игрока
                     navigator.navigate(View.CHOOSE_FIRST_PLAYER, Map.of(
                         "roomPort", roomPort,
@@ -229,16 +231,16 @@ public class WaitingRoomController extends BaseController {
                         "opponentName", opponentName
                     ));
 
-                } else if (message.startsWith("ROOM_CLOSED|")) {
+                } else if (payload.startsWith("ROOM_CLOSED|")) {
                     navigator.showError("Комната закрыта", "Хост закрыл комнату");
                     navigator.navigate(View.MAIN_MENU);
 
-                } else if (message.startsWith("RECONNECT_AVAILABLE|")) {
+                } else if (payload.startsWith("RECONNECT_AVAILABLE|")) {
                     // Есть сохраненная игра
                     reconnectPanel.setVisible(true);
 
-                } else if (message.startsWith("ERROR|")) {
-                    String error = message.substring("ERROR|".length());
+                } else if (payload.startsWith("ERROR|")) {
+                    String error = payload.substring("ERROR|".length());
                     navigator.showError("Ошибка", error);
                 }
             } catch (Exception e) {

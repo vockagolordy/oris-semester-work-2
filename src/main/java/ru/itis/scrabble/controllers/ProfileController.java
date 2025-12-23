@@ -8,6 +8,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.GridPane;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 import java.util.Map;
 
@@ -66,7 +67,7 @@ public class ProfileController extends BaseController {
 
     private void loadProfileData() {
         // Отправляем запрос на получение статистики пользователя
-        sendJsonCommand("GET_USER_STATS", Map.of("userId", currentUserId));
+        sendNetworkMessage("GET_USER_STATS", Map.of("userId", currentUserId));
 
         refreshButton.setDisable(true);
         refreshButton.setText("Загрузка...");
@@ -87,7 +88,7 @@ public class ProfileController extends BaseController {
                     "newUsername", newUsername.trim()
                 );
 
-                sendJsonCommand("UPDATE_USERNAME", updateData);
+                sendNetworkMessage("UPDATE_USERNAME", updateData);
             }
         });
     }
@@ -114,13 +115,14 @@ public class ProfileController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(String message) {
+    public void handleNetworkMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
+                String payload = message.payload();
 
-                if (message.startsWith("USER_STATS|")) {
-                    String json = message.substring("USER_STATS|".length());
+                if (payload.startsWith("USER_STATS|")) {
+                    String json = payload.substring("USER_STATS|".length());
                     Map<String, Object> stats = mapper.readValue(json, Map.class);
 
                     userStats.totalGames = ((Number) stats.getOrDefault("totalGames", 0)).intValue();
@@ -141,8 +143,8 @@ public class ProfileController extends BaseController {
 
                     updateUI();
 
-                } else if (message.startsWith("USERNAME_UPDATED|")) {
-                    String json = message.substring("USERNAME_UPDATED|".length());
+                } else if (payload.startsWith("USERNAME_UPDATED|")) {
+                    String json = payload.substring("USERNAME_UPDATED|".length());
                     Map<String, Object> response = mapper.readValue(json, Map.class);
 
                     String newUsername = (String) response.get("username");
@@ -154,12 +156,12 @@ public class ProfileController extends BaseController {
                     navigator.showDialog("Успех", "Имя пользователя изменено на: " + newUsername);
                     loadProfileData(); // Перезагружаем данные
 
-                } else if (message.startsWith("USERNAME_UPDATE_ERROR|")) {
-                    String error = message.substring("USERNAME_UPDATE_ERROR|".length());
+                } else if (payload.startsWith("USERNAME_UPDATE_ERROR|")) {
+                    String error = payload.substring("USERNAME_UPDATE_ERROR|".length());
                     navigator.showError("Ошибка", "Не удалось изменить имя: " + error);
 
-                } else if (message.startsWith("ERROR|")) {
-                    String error = message.substring("ERROR|".length());
+                } else if (payload.startsWith("ERROR|")) {
+                    String error = payload.substring("ERROR|".length());
                     navigator.showError("Ошибка", error);
                     refreshButton.setDisable(false);
                     refreshButton.setText("Обновить");

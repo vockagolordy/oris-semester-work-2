@@ -1,6 +1,5 @@
 package ru.itis.scrabble.controllers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -8,21 +7,32 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 import java.util.Map;
 import java.util.Random;
+import java.util.HashMap;
 
 public class CreateRoomController extends BaseController {
 
-    @FXML private TextField portField;
-    @FXML private Button randomPortButton;
-    @FXML private Button createButton;
-    @FXML private Button cancelButton;
-    @FXML private VBox waitingPanel;
-    @FXML private Label waitingTimerLabel;
-    @FXML private Label roomPortLabel;
-    @FXML private Button cancelWaitingButton;
-    @FXML private Label errorLabel;
+    @FXML
+    private TextField portField;
+    @FXML
+    private Button randomPortButton;
+    @FXML
+    private Button createButton;
+    @FXML
+    private Button cancelButton;
+    @FXML
+    private VBox waitingPanel;
+    @FXML
+    private Label waitingTimerLabel;
+    @FXML
+    private Label roomPortLabel;
+    @FXML
+    private Button cancelWaitingButton;
+    @FXML
+    private Label errorLabel;
 
     private boolean waitingForPlayer = false;
     private int roomPort;
@@ -34,10 +44,10 @@ public class CreateRoomController extends BaseController {
     }
 
     private void setupEventHandlers() {
-        randomPortButton.setOnAction(event -> generateRandomPort());
-        createButton.setOnAction(event -> createRoom());
-        cancelButton.setOnAction(event -> navigator.navigate(View.MAIN_MENU));
-        cancelWaitingButton.setOnAction(event -> cancelWaiting());
+        randomPortButton.setOnAction(_ -> generateRandomPort());
+        createButton.setOnAction(_ -> createRoom());
+        cancelButton.setOnAction(_ -> navigator.navigate(View.MAIN_MENU));
+        cancelWaitingButton.setOnAction(_ -> cancelWaiting());
     }
 
     private void generateRandomPort() {
@@ -60,12 +70,12 @@ public class CreateRoomController extends BaseController {
 
             // Отправляем запрос на создание комнаты
             Map<String, Object> roomData = Map.of(
-                "port", roomPort,
-                "creatorId", currentUserId,
-                "creatorName", currentUsername
+                    "port", roomPort,
+                    "creatorId", currentUserId,
+                    "creatorName", currentUsername
             );
 
-            sendJsonCommand("CREATE_ROOM", roomData);
+            sendNetworkMessage("CREATE_ROOM", roomData);
 
         } catch (NumberFormatException e) {
             showError("Введите корректный номер порта");
@@ -114,7 +124,7 @@ public class CreateRoomController extends BaseController {
     private void cancelWaiting() {
         waitingForPlayer = false;
         // Отправляем команду отмены ожидания
-        sendJsonCommand("CANCEL_WAITING", Map.of("port", roomPort));
+        sendNetworkMessage("CANCEL_WAITING", Map.of("port", roomPort));
         hideWaitingPanel();
     }
 
@@ -124,20 +134,21 @@ public class CreateRoomController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(String message) {
+    public void handleNetworkMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             try {
-                if (message.startsWith("ROOM_CREATED|")) {
+                String payload = message.payload();
+                if (payload.startsWith("ROOM_CREATED|")) {
                     // Комната создана успешно
-                    String json = message.substring("ROOM_CREATED|".length());
+                    String json = payload.substring("ROOM_CREATED|".length());
                     Map<String, Object> response = objectMapper.readValue(json, Map.class);
 
                     waitingForPlayer = true;
                     showWaitingPanel();
 
-                } else if (message.startsWith("PLAYER_JOINED|")) {
+                } else if (payload.startsWith("PLAYER_JOINED|")) {
                     // Второй игрок присоединился
-                    String json = message.substring("PLAYER_JOINED|".length());
+                    String json = payload.substring("PLAYER_JOINED|".length());
                     Map<String, Object> response = objectMapper.readValue(json, Map.class);
 
                     String opponentName = (String) response.get("opponentName");
@@ -146,21 +157,20 @@ public class CreateRoomController extends BaseController {
                     waitingForPlayer = false;
 
                     // Переходим в комнату ожидания
-                    Map<String, Object> roomData = Map.of(
-                        "port", roomPort,
-                        "hostId", currentUserId,
-                        "opponentId", opponentId,
-                        "opponentName", opponentName
-                    );
+                    Map<String, Object> roomData = new HashMap<>();
+                    roomData.put("port", roomPort);
+                    roomData.put("hostId", currentUserId);
+                    roomData.put("opponentId", opponentId);
+                    roomData.put("opponentName", opponentName);
 
                     navigator.navigate(View.WAITING_ROOM, roomData);
 
-                } else if (message.startsWith("ROOM_ERROR|")) {
-                    String error = message.substring("ROOM_ERROR|".length());
+                } else if (payload.startsWith("ROOM_ERROR|")) {
+                    String error = payload.substring("ROOM_ERROR|".length());
                     showError("Ошибка создания комнаты: " + error);
                     createButton.setDisable(false);
 
-                } else if (message.startsWith("PORT_IN_USE|")) {
+                } else if (payload.startsWith("PORT_IN_USE|")) {
                     showError("Этот порт уже используется");
                     createButton.setDisable(false);
                 }

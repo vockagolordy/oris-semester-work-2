@@ -7,15 +7,15 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 public class NetworkClient {
     private SocketChannel channel;
     private final ByteBuffer readBuffer;
-    private Consumer<NetworkMessage> messageHandler; // Теперь принимает объект, а не строку
+    private Consumer<NetworkMessage> messageHandler; // Теперь принимает dto.NetworkMessage
     private final ExecutorService executor;
     private final ObjectMapper objectMapper;
     private boolean connected;
@@ -69,7 +69,14 @@ public class NetworkClient {
         if (!isConnected()) return;
 
         try {
-            NetworkMessage message = new NetworkMessage(type, payload);
+            MessageType mt;
+            try {
+                mt = MessageType.valueOf(type);
+            } catch (IllegalArgumentException ex) {
+                mt = MessageType.GAME_EVENT;
+            }
+
+            NetworkMessage message = new NetworkMessage(mt, payload, null);
             byte[] body = objectMapper.writeValueAsBytes(message);
 
             // Выделяем память: 4 байта под int + длина тела
@@ -143,8 +150,8 @@ public class NetworkClient {
     private void handleDisconnect() {
         connected = false;
         Platform.runLater(() -> {
-            if (messageHandler != null) {
-                messageHandler.accept(new NetworkMessage("DISCONNECTED", "Сервер разорвал соединение"));
+                if (messageHandler != null) {
+                messageHandler.accept(new NetworkMessage(MessageType.ERROR, "Сервер разорвал соединение", null));
             }
         });
     }
@@ -152,8 +159,8 @@ public class NetworkClient {
     private void handleSystemError(String error) {
         connected = false;
         Platform.runLater(() -> {
-            if (messageHandler != null) {
-                messageHandler.accept(new NetworkMessage("ERROR", error));
+                if (messageHandler != null) {
+                messageHandler.accept(new NetworkMessage(MessageType.ERROR, error, null));
             }
         });
     }

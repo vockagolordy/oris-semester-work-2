@@ -8,10 +8,10 @@ import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 import java.util.Map;
 
@@ -96,21 +96,21 @@ public class TilesStylesController extends BaseController {
 
     private void setupEventHandlers() {
         // Обработчики для радиокнопок
-        classicRadio.setOnAction(event -> selectStyle(1));
-        modernRadio.setOnAction(event -> selectStyle(2));
-        darkRadio.setOnAction(event -> selectStyle(3));
-        pastelRadio.setOnAction(event -> selectStyle(4));
-        oceanRadio.setOnAction(event -> selectStyle(5));
-        autumnRadio.setOnAction(event -> selectStyle(6));
+        classicRadio.setOnAction(_ -> selectStyle(1));
+        modernRadio.setOnAction(_ -> selectStyle(2));
+        darkRadio.setOnAction(_ -> selectStyle(3));
+        pastelRadio.setOnAction(_ -> selectStyle(4));
+        oceanRadio.setOnAction(_ -> selectStyle(5));
+        autumnRadio.setOnAction(_ -> selectStyle(6));
 
-        applyButton.setOnAction(event -> applyStyle());
-        resetButton.setOnAction(event -> resetToDefault());
-        backButton.setOnAction(event -> navigator.navigate(View.MAIN_MENU));
+        applyButton.setOnAction(_ -> applyStyle());
+        resetButton.setOnAction(_ -> resetToDefault());
+        backButton.setOnAction(_ -> navigator.navigate(View.MAIN_MENU));
     }
 
     private void loadCurrentStyle() {
         // Запрашиваем текущий стиль у сервера
-        sendJsonCommand("GET_CURRENT_STYLE", Map.of("userId", currentUserId));
+        sendNetworkMessage("GET_CURRENT_STYLE", Map.of("userId", currentUserId));
     }
 
     private void selectStyle(int styleId) {
@@ -153,7 +153,7 @@ public class TilesStylesController extends BaseController {
             "styleId", currentStyleId
         );
 
-        sendJsonCommand("UPDATE_STYLE", styleData);
+        sendNetworkMessage("UPDATE_STYLE", styleData);
 
         applyButton.setDisable(true);
         applyButton.setText("Применяется...");
@@ -167,13 +167,14 @@ public class TilesStylesController extends BaseController {
     }
 
     @Override
-    public void handleNetworkMessage(String message) {
+    public void handleNetworkMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
+                String payload = message.payload();
 
-                if (message.startsWith("CURRENT_STYLE|")) {
-                    String json = message.substring("CURRENT_STYLE|".length());
+                if (payload.startsWith("CURRENT_STYLE|")) {
+                    String json = payload.substring("CURRENT_STYLE|".length());
                     Map<String, Object> response = mapper.readValue(json, Map.class);
 
                     int styleId = ((Number) response.get("styleId")).intValue();
@@ -189,8 +190,8 @@ public class TilesStylesController extends BaseController {
                         case 6 -> autumnRadio.setSelected(true);
                     }
 
-                } else if (message.startsWith("STYLE_UPDATED|")) {
-                    String json = message.substring("STYLE_UPDATED|".length());
+                } else if (payload.startsWith("STYLE_UPDATED|")) {
+                    String json = payload.substring("STYLE_UPDATED|".length());
                     Map<String, Object> response = mapper.readValue(json, Map.class);
 
                     int newStyleId = ((Number) response.get("styleId")).intValue();
@@ -206,16 +207,16 @@ public class TilesStylesController extends BaseController {
                     // Обновляем превью
                     selectStyle(newStyleId);
 
-                } else if (message.startsWith("STYLE_UPDATE_ERROR|")) {
-                    String error = message.substring("STYLE_UPDATE_ERROR|".length());
+                } else if (payload.startsWith("STYLE_UPDATE_ERROR|")) {
+                    String error = payload.substring("STYLE_UPDATE_ERROR|".length());
                     navigator.showError("Ошибка", "Не удалось изменить стиль: " + error);
 
                     applyButton.setDisable(false);
                     applyButton.setText("Применить стиль");
                     statusLabel.setText("Ошибка применения стиля");
 
-                } else if (message.startsWith("ERROR|")) {
-                    String error = message.substring("ERROR|".length());
+                } else if (payload.startsWith("ERROR|")) {
+                    String error = payload.substring("ERROR|".length());
                     navigator.showError("Ошибка", error);
 
                     applyButton.setDisable(false);

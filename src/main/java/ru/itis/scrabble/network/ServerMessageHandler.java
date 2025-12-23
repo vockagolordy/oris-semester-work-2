@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.application.Platform;
 import ru.itis.scrabble.controllers.BaseController;
 import ru.itis.scrabble.navigation.NavigationManager;
+import ru.itis.scrabble.dto.NetworkMessage;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,43 +30,30 @@ public class ServerMessageHandler {
         activeControllers.remove(controllerType);
     }
 
-    public void handleMessage(String message) {
+    public void handleMessage(NetworkMessage message) {
         Platform.runLater(() -> {
             try {
-                // Парсим сообщение
-                if (message.contains("|")) {
-                    String[] parts = message.split("\\|", 2);
-                    String command = parts[0];
-                    String data = parts.length > 1 ? parts[1] : "";
+                if (message == null) return;
 
-                    // Определяем тип сообщения и передаем соответствующим контроллерам
-                    if (command.startsWith("AUTH") || command.startsWith("REGISTER")) {
-                        forwardToController("login", message);
-                    } else if (command.startsWith("ROOM") || command.startsWith("JOIN")) {
-                        forwardToController("room", message);
-                    } else if (command.startsWith("GAME") || command.startsWith("MOVE")) {
-                        forwardToController("game", message);
-                    } else if (command.startsWith("USER") || command.startsWith("STATS")) {
-                        forwardToController("profile", message);
-                    } else if (command.startsWith("STYLE")) {
-                        forwardToController("styles", message);
-                    } else {
-                        // Глобальные сообщения для всех контроллеров
-                        broadcastMessage(message);
-                    }
-                } else {
-                    // Простое текстовое сообщение
-                    System.out.println("Server message: " + message);
+                MessageType type = message.type();
+
+                switch (type) {
+                    case AUTH -> forwardToController("login", message);
+                    case TURN_COMMIT, TILE_PREVIEW, SYNC_STATE, GAME_EVENT, HEARTBEAT -> forwardToController("game", message);
+                    case ERROR -> navigationManager.showError("Ошибка сервера", message.payload());
+                    default -> broadcastMessage(message);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                navigationManager.showError("Ошибка обработки",
-                    "Ошибка при обработке сообщения сервера: " + e.getMessage());
+                if (navigationManager != null) {
+                    navigationManager.showError("Ошибка обработки",
+                        "Ошибка при обработке сообщения сервера: " + e.getMessage());
+                }
             }
         });
     }
 
-    private void forwardToController(String controllerType, String message) {
+    private void forwardToController(String controllerType, NetworkMessage message) {
         BaseController controller = activeControllers.get(controllerType);
         if (controller != null) {
             controller.handleNetworkMessage(message);
@@ -74,7 +62,7 @@ public class ServerMessageHandler {
         }
     }
 
-    private void broadcastMessage(String message) {
+    private void broadcastMessage(NetworkMessage message) {
         // Отправляем сообщение всем активным контроллерам
         for (BaseController controller : activeControllers.values()) {
             controller.handleNetworkMessage(message);

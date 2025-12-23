@@ -9,7 +9,6 @@ import ru.itis.scrabble.network.NetworkClient;
 import ru.itis.scrabble.network.ServerMessageHandler;
 
 import java.io.IOException;
-import java.util.Map;
 
 public class NavigationManager {
     private final Stage stage;
@@ -42,7 +41,7 @@ public class NavigationManager {
 
     public void navigate(View view, Object data) {
         try {
-            String fxmlPath = "/ru/itis/scrabble/views/" + view.getFxmlFile();
+            String fxmlPath = "/ru/itis/scrabble/" + view.getFxmlFile();
             var loader = new FXMLLoader(getClass().getResource(fxmlPath));
             Parent root = loader.load();
 
