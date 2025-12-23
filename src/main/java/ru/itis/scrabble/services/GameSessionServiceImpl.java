@@ -8,6 +8,7 @@ import ru.itis.scrabble.network.ClientSession;
 import ru.itis.scrabble.network.MessageType;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,37 +20,32 @@ public class GameSessionServiceImpl implements GameSessionService {
     private final WordService wordService;
     private final ScoringService scoringService;
     private final BagService bagService;
+    private final UserService userService; // Добавлено для работы с БД пользователей
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // Храним активные сессии. Ключ — ID комнаты (порт), значение — состояние игры
     private final Map<Integer, GameSession> games = new ConcurrentHashMap<>();
-
-    // Храним список активных сетевых сессий для каждой комнаты для рассылки
     private final Map<Integer, List<ClientSession>> roomSessions = new ConcurrentHashMap<>();
 
     public GameSessionServiceImpl(BoardService boardService, WordService wordService,
-                                  ScoringService scoringService, BagService bagService) {
+                                  ScoringService scoringService, BagService bagService,
+                                  UserService userService) {
         this.boardService = boardService;
         this.wordService = wordService;
         this.scoringService = scoringService;
         this.bagService = bagService;
+        this.userService = userService;
     }
 
     @Override
     public void startNewGame(int roomId, List<Player> players, List<ClientSession> sessions) {
-        // 1. Инициализируем доску с бонусами через BoardService
         Board board = boardService.createInitializedBoard();
-
-        // 2. Наполняем мешок
         Bag bag = bagService.fullBag();
 
-        // 3. Раздаем фишки игрокам
         for (Player player : players) {
             player.getRack().clear();
             player.addTiles(bagService.takeTiles(bag, 7));
         }
 
-        // 4. Создаем игру и сохраняем сессии для рассылки
         GameSession game = new GameSession(board, bag, players);
         games.put(roomId, game);
         roomSessions.put(roomId, new ArrayList<>(sessions));
@@ -64,47 +60,54 @@ public class GameSessionServiceImpl implements GameSessionService {
 
         Player currentPlayer = session.getCurrentPlayer();
 
-        // 1. Проверка очереди хода
         if (!currentPlayer.getUserId().equals(userId)) {
             sendErrorMessage(roomId, userId, "Сейчас не ваш ход!");
             return false;
         }
 
-        // 2. Геометрия (Уровень 1)
         boolean isFirstMove = session.getBoard().isEmpty();
         if (!boardService.checkGeometry(placements, session.getBoard(), isFirstMove)) {
             sendErrorMessage(roomId, userId, "Некорректное расположение фишек!");
             return false;
         }
 
-        // 3. Поиск слов и Словарь (Уровень 2)
         List<List<TilePlacementDTO>> allWords = boardService.findAllWords(placements, session.getBoard());
         if (!wordService.checkWords(allWords)) {
             sendErrorMessage(roomId, userId, "Слова нет в словаре!");
             return false;
         }
 
-        // 4. Подсчет очков
         int turnScore = scoringService.countScore(placements, allWords, session.getBoard());
         currentPlayer.increaseScore(turnScore);
 
-        // 5. Фиксация на доске
         for (TilePlacementDTO p : placements) {
             session.getBoard().setCell(p.x(), p.y(), p.tile());
         }
 
-        // 6. Обновление руки
         List<Tile> usedTiles = placements.stream().map(TilePlacementDTO::tile).toList();
         currentPlayer.removeTiles(usedTiles);
         currentPlayer.addTiles(bagService.takeTiles(session.getBag(), placements.size()));
 
-        // 7. Переход хода
-        session.nextTurn();
-
-        // 8. Рассылка обновленного состояния всем участникам
-        broadcastGameState(roomId);
+        // Проверка завершения игры
+        if (session.getBag().isEmpty() && currentPlayer.getRack().isEmpty()) {
+            handleGameOver(roomId, session);
+        } else {
+            session.nextTurn();
+            broadcastGameState(roomId);
+        }
 
         return true;
+    }
+
+    private void handleGameOver(int roomId, GameSession session) {
+        session.setGameOver(true);
+        broadcastGameState(roomId);
+
+        // Сохранение результатов в БД через UserService
+        for (Player player : session.getPlayers()) {
+            // Предполагаем, что в UserService есть метод обновления статистики
+            userService.updateUserStats(player.getUserId(), player.getScore());
+        }
     }
 
     private void broadcastGameState(int roomId) {
@@ -114,7 +117,6 @@ public class GameSessionServiceImpl implements GameSessionService {
         if (game == null || sessions == null) return;
 
         try {
-            // Сериализуем состояние игры в JSON
             String gameStateJson = objectMapper.writeValueAsString(game);
             NetworkMessage syncMsg = new NetworkMessage(MessageType.SYNC_STATE, gameStateJson, "SERVER");
 
@@ -122,7 +124,7 @@ public class GameSessionServiceImpl implements GameSessionService {
                 sendMessage(session, syncMsg);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Ошибка при рассылке состояния игры: " + e.getMessage());
         }
     }
 
@@ -143,15 +145,22 @@ public class GameSessionServiceImpl implements GameSessionService {
                 });
     }
 
+    /**
+     * Исправлено: Централизованный метод отправки.
+     * Теперь строго соблюдает протокол [4 байта длины] + [JSON]
+     */
     private void sendMessage(ClientSession session, NetworkMessage message) throws IOException {
-        String json = objectMapper.writeValueAsString(message);
-        byte[] body = json.getBytes();
+        byte[] body = objectMapper.writeValueAsBytes(message);
 
-        java.nio.ByteBuffer header = java.nio.ByteBuffer.allocate(4);
-        header.putInt(body.length);
-        header.flip();
+        // Выделяем один буфер под всё сообщение (Header + Body)
+        ByteBuffer buffer = ByteBuffer.allocate(4 + body.length);
+        buffer.putInt(body.length); // 4 байта длины
+        buffer.put(body);           // Тело JSON
+        buffer.flip();
 
-        session.getChannel().write(header);
-        session.getChannel().write(java.nio.ByteBuffer.wrap(body));
+        // Записываем всё в канал сессии
+        while (buffer.hasRemaining()) {
+            session.getChannel().write(buffer);
+        }
     }
 }

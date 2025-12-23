@@ -3,8 +3,8 @@ package ru.itis.scrabble.controllers;
 import javafx.fxml.FXML;
 import ru.itis.scrabble.navigation.NavigationManager;
 import ru.itis.scrabble.network.NetworkClient;
+import ru.itis.scrabble.dto.NetworkMessage; // Убедитесь, что импорт соответствует вашему проекту
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
 
 /**
@@ -16,7 +16,7 @@ public abstract class BaseController {
     protected NetworkClient networkService;
     protected ObjectMapper objectMapper = new ObjectMapper();
 
-    // Идентификатор текущего пользователя (устанавливается после авторизации)
+    // Идентификатор текущего пользователя
     protected Long currentUserId;
     protected String currentUsername;
 
@@ -47,10 +47,9 @@ public abstract class BaseController {
         return currentUsername;
     }
 
-    // Метод для инициализации данных при переходе
     public void initData(Object data) {
         if (data instanceof Map) {
-            Map<String, Object> dataMap = (Map<String, Object>) data;
+            Map<?, ?> dataMap = (Map<?, ?>) data;
             if (dataMap.containsKey("userId")) {
                 currentUserId = (Long) dataMap.get("userId");
             }
@@ -60,32 +59,30 @@ public abstract class BaseController {
         }
     }
 
-    // Метод для отправки сетевых сообщений
     protected void sendNetworkMessage(String type, Object payload) {
+        if (networkService == null || !networkService.isConnected()) {
+            System.err.println("Ошибка: Сетевая служба не подключена.");
+            return;
+        }
+
         try {
-            String payloadJson = objectMapper.writeValueAsString(payload);
-            String message = type + "|" + payloadJson;
-            networkService.sendMessage(message);
+            // Превращаем полезную нагрузку в JSON-строку
+            String payloadJson = (payload instanceof String)
+                    ? (String) payload
+                    : objectMapper.writeValueAsString(payload);
+
+            // Отправляем через типизированный метод клиента
+            networkService.sendMessage(type, payloadJson);
+
+            System.out.println("Отправлена команда: " + type);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Ошибка при подготовке сообщения: " + e.getMessage());
         }
     }
 
-    // Метод для отправки команд в формате JSON
-    protected void sendJsonCommand(String command, Object data) {
-        try {
-            Map<String, Object> message = Map.of(
-                "type", command,
-                "payload", data,
-                "senderId", currentUserId
-            );
-            String json = objectMapper.writeValueAsString(message);
-            networkService.sendMessage(json);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    protected void sendPlayerAction(String actionType, Object data) {
+        sendNetworkMessage(actionType, data);
     }
 
-    // Метод, который будет вызываться при получении данных от сокета
-    public abstract void handleNetworkMessage(String message);
+    public abstract void handleNetworkMessage(NetworkMessage message);
 }
