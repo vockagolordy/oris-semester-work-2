@@ -10,6 +10,7 @@ import ru.itis.scrabble.network.MessageType;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -133,12 +134,13 @@ public class GameSessionServiceImpl implements GameSessionService {
     private void handleGameOver(int roomId, GameSession session) {
         session.setGameOver(true);
         broadcastGameState(roomId);
-
-        // Сохранение результатов в БД через UserService
-        for (Player player : session.getPlayers()) {
-            // Предполагаем, что в UserService есть метод обновления статистики
-            userService.updateGames(player.getUserId(), player.getScore());
+        List<Player> players = session.getPlayers();
+        players.sort((o1, o2) -> o1.getScore() - o2.getScore());
+        userService.updateGames(players.getFirst().getUserId(), -1);
+        for (Player player: players) {
+            userService.updateGames(player.getUserId(), 0);
         }
+        userService.updateGames(players.getLast().getUserId(), 1);
 
         // Shutdown room executor as game finished
         java.util.concurrent.ExecutorService exec = roomExecutors.remove(roomId);

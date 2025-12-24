@@ -31,9 +31,23 @@ public class GameSession {
     }
 
     // Геттеры
-    public Board getBoard() { return board; }
-    public Bag getBag() { return bag; }
-    public List<Player> getPlayers() { return players; }
-    public boolean isGameOver() { return isGameOver; }
-    public void setGameOver(boolean gameOver) { isGameOver = gameOver; }
+    public Board getBoard() {
+        return board;
+    }
+
+    public Bag getBag() {
+        return bag;
+    }
+
+    public List<Player> getPlayers() {
+        return players;
+    }
+
+    public boolean isGameOver() {
+        return isGameOver;
+    }
+
+    public void setGameOver(boolean gameOver) {
+        isGameOver = gameOver;
+    }
 }
