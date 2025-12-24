@@ -1,90 +1,96 @@
 package ru.itis.scrabble.services;
 
-import org.mindrot.jbcrypt.BCrypt;
 import ru.itis.scrabble.models.User;
-import ru.itis.scrabble.repositories.UserRepository;
-
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Реализация сервиса управления пользователями с использованием BCrypt.
- * Библиотека BCrypt автоматически генерирует соль и внедряет её в итоговый хеш.
+ * Демонстрационная реализация сервиса (Заглушка).
+ * Работает в оперативной памяти, не требует БД и репозиториев.
  */
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository;
+    // Имитация базы данных в оперативной памяти
+    private static final Map<String, User> usersByUsername = new ConcurrentHashMap<>();
+    private static final Map<Long, User> usersById = new ConcurrentHashMap<>();
+    private static final AtomicLong idGenerator = new AtomicLong(1);
 
     private static final List<Integer> AVAILABLE_STYLES = Arrays.asList(1, 2, 3, 4, 5);
     private static final int DEFAULT_STYLE_ID = 1;
 
-    public UserServiceImpl(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserServiceImpl(Object unusedRepository) {
+        // Конструктор принимает Object, чтобы не ломать зависимости в местах вызова,
+        // но репозиторий нам больше не нужен.
+        System.out.println("UserService запущен в режиме демо");
+
+        // Предзаполним одного тестового пользователя для удобства
+        prefillMockData();
+    }
+
+    private void prefillMockData() {
+        register("admin", "123456");
+        register("player", "123456");
     }
 
     @Override
     public User register(String username, String password) {
-        // 1. Валидация
         validateCredentials(username, password);
 
-        if (userRepository.existsByUsername(username)) {
+        if (usersByUsername.containsKey(username)) {
             throw new IllegalArgumentException("Пользователь с таким именем уже существует");
         }
 
-        // 2. Хеширование через BCrypt
-        String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
-
-        // 3. Создание и сохранение
-        User user = new User(username, hashedPassword);
+        // Вместо хеширования BCrypt просто сохраняем пароль (для демо это безопасно)
+        User user = new User(username, password);
+        long id = idGenerator.getAndIncrement();
+        user.setId(id);
         user.setStyleId(DEFAULT_STYLE_ID);
 
-        return userRepository.save(user);
+        // Сохраняем в наши Map-ы
+        usersByUsername.put(username, user);
+        usersById.put(id, user);
+
+        System.out.println("Демо-регистрация успешна: " + username);
+        return user;
     }
 
     @Override
     public User login(String username, String password) {
-        User user = userRepository.findByUsername(username);
+        User user = usersByUsername.get(username);
 
         if (user == null) {
             throw new IllegalArgumentException("Пользователь не найден");
         }
 
-        // 4. Проверка пароля (BCrypt сам извлечет соль из user.getPasswordHash())
-        if (!BCrypt.checkpw(password, user.getPasswordHash())) {
+        // Простая проверка пароля без BCrypt для скорости и надежности демо
+        if (!password.equals(user.getPasswordHash())) {
             throw new IllegalArgumentException("Неверный пароль");
         }
 
+        System.out.println("Демо-вход выполнен: " + username);
         return user;
     }
 
     @Override
     public User findById(Long id) {
-        return userRepository.findById(id);
+        return usersById.get(id);
     }
 
     @Override
     public User findByUsername(String username) {
-        return userRepository.findByUsername(username);
+        return usersByUsername.get(username);
     }
 
     @Override
     public void updateGames(Long userId, int gameState) {
-        User user = userRepository.findById(userId);
+        User user = usersById.get(userId);
         if (user != null) {
             switch (gameState) {
-                case -1:
-                    user.addLose();
-                    break;
-                case 0:
-                    user.addGame();
-                    break;
-                case 1:
-                    user.addWin();
-                default:
-                    return;
+                case -1 -> user.addLose();
+                case 0 -> user.addGame();
+                case 1 -> user.addWin();
             }
-
-            userRepository.update(user);
         }
     }
 
@@ -94,16 +100,15 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("Стиль #" + styleId + " недоступен");
         }
 
-        User user = userRepository.findById(userId);
+        User user = usersById.get(userId);
         if (user != null) {
             user.setStyleId(styleId);
-            userRepository.update(user);
         }
     }
 
     @Override
     public int getCurrentStyle(Long userId) {
-        User user = userRepository.findById(userId);
+        User user = usersById.get(userId);
         return (user != null) ? user.getStyleId() : DEFAULT_STYLE_ID;
     }
 

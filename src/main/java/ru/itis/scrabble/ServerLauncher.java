@@ -17,8 +17,8 @@ public class ServerLauncher {
         NetworkServer server = null;
         UserRepository userRepository = null;
         try {
-            emf = jakarta.persistence.Persistence.createEntityManagerFactory("scrabble-server");
-            em = emf.createEntityManager();
+            //emf = jakarta.persistence.Persistence.createEntityManagerFactory("scrabble-server");
+            //em = emf.createEntityManager();
 
             // Инициализация репозиториев
             userRepository = new JpaUserRepository(em);
