@@ -7,6 +7,9 @@ module ru.itis.scrabble {
     requires jbcrypt;
 
 
+    opens ru.itis.scrabble.controllers to javafx.fxml;
     opens ru.itis.scrabble to javafx.fxml;
+
     exports ru.itis.scrabble;
+    exports ru.itis.scrabble.controllers;
 }

@@ -1,5 +1,7 @@
 package ru.itis.scrabble.controllers;
 
+import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import ru.itis.scrabble.navigation.NavigationManager;
 import ru.itis.scrabble.network.NetworkClient;
 import ru.itis.scrabble.dto.NetworkMessageDTO; // Убедитесь, что импорт соответствует вашему проекту
@@ -10,7 +12,7 @@ import java.util.Map;
  * Базовый класс для всех контроллеров приложения.
  * Обеспечивает доступ к навигации и сетевому клиенту.
  */
-public abstract class BaseController {
+public abstract class BaseController implements Initializable {
     protected NavigationManager navigator;
     protected NetworkClient networkService;
     protected ObjectMapper objectMapper = new ObjectMapper();
@@ -19,6 +21,7 @@ public abstract class BaseController {
     protected Long currentUserId;
     protected String currentUsername;
 
+    @Override
     public void initialize(java.net.URL location, java.util.ResourceBundle resources) {
     }
 

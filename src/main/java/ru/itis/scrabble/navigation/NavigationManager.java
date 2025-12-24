@@ -42,7 +42,7 @@ public class NavigationManager {
     public void navigate(View view, Object data) {
         try {
             String fxmlPath = "/ru/itis/scrabble/" + view.getFxmlFile();
-            var loader = new FXMLLoader(getClass().getResource(fxmlPath));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
             Parent root = loader.load();
 
             BaseController controller = loader.getController();
