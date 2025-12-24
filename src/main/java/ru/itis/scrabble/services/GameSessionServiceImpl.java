@@ -137,7 +137,7 @@ public class GameSessionServiceImpl implements GameSessionService {
         // Сохранение результатов в БД через UserService
         for (Player player : session.getPlayers()) {
             // Предполагаем, что в UserService есть метод обновления статистики
-            userService.updateUserStats(player.getUserId(), player.getScore());
+            userService.updateGames(player.getUserId(), player.getScore());
         }
 
         // Shutdown room executor as game finished
