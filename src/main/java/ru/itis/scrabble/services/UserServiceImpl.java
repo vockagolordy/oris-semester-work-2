@@ -68,14 +68,22 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void updateGames(Long userId, boolean isWin) {
+    public void updateGames(Long userId, int gameState) {
         User user = userRepository.findById(userId);
         if (user != null) {
-            if (isWin) {
-                user.addWin();
-            } else {
-                user.addLose();
+            switch (gameState) {
+                case -1:
+                    user.addLose();
+                    break;
+                case 0:
+                    user.addGame();
+                    break;
+                case 1:
+                    user.addWin();
+                default:
+                    return;
             }
+
             userRepository.update(user);
         }
     }

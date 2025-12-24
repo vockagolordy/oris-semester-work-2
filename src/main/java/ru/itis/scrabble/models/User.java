@@ -52,11 +52,15 @@ public class User {
     // Логика обновления статистики
     public void addWin() {
         this.totalWins++;
-        this.totalGames++;
+        addGame();
     }
 
     public void addLose() {
         this.totalLoses++;
-        this.totalGames++;
+        addGame();
+    }
+
+    public void addGame() {
+        totalGames++;
     }
 }

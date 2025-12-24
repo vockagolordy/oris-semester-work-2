@@ -8,7 +8,7 @@ public interface UserService {
     User login(String username, String passwordHash);
     User findById(Long id);
     User findByUsername(String username);
-    void updateGames(Long userId, boolean isWin);
+    void updateGames(Long userId, int gameState);
 
     void updateStyle(Long userId, int styleId);
     int getCurrentStyle(Long userId);
