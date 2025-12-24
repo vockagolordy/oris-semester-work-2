@@ -1,6 +1,7 @@
 package ru.itis.scrabble.network;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import javafx.application.Platform;
 
 import java.io.IOException;
@@ -16,17 +17,21 @@ public class NetworkClient {
     private SocketChannel channel;
     private final ByteBuffer readBuffer;
     private Consumer<NetworkMessageDTO> messageHandler; // Теперь принимает dto.NetworkMessage
-    private final ExecutorService executor;
+    private ExecutorService executor;
     private final ObjectMapper objectMapper;
     private boolean connected;
     private String host;
     private int port;
+    private static final int DEFAULT_READ_BUFFER = 64 * 1024; // 64KB
+    // Maximum message we can hold in the read buffer (reserve 4 bytes for length)
+    private static final int MAX_MESSAGE_SIZE = DEFAULT_READ_BUFFER - 4;
 
     public NetworkClient() {
         // Увеличим буфер для больших JSON (состояние игрового поля)
-        this.readBuffer = ByteBuffer.allocate(16384);
-        this.executor = Executors.newSingleThreadExecutor();
+        this.readBuffer = ByteBuffer.allocate(DEFAULT_READ_BUFFER);
         this.objectMapper = new ObjectMapper();
+        // Be tolerant to small DTO changes from server
+        this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.connected = false;
     }
 
@@ -47,6 +52,12 @@ public class NetworkClient {
             }
         }
 
+        // Switch to blocking mode for reliable blocking reads/writes on the background thread
+        channel.configureBlocking(true);
+
+        // Create executor per-connection so reconnects work correctly
+        this.executor = Executors.newSingleThreadExecutor();
+
         connected = true;
         startMessageReader();
         System.out.println("Подключено к серверу по протоколу [Length+JSON] " + host + ":" + port);
@@ -59,7 +70,10 @@ public class NetworkClient {
         } catch (IOException e) {
             System.err.println("Ошибка при закрытии канала: " + e.getMessage());
         }
-        executor.shutdownNow();
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
+        }
     }
 
     /**
@@ -68,14 +82,19 @@ public class NetworkClient {
     public void sendMessage(String type, String payload) {
         if (!isConnected()) return;
 
+        MessageType mt;
         try {
-            MessageType mt;
-            try {
-                mt = MessageType.valueOf(type);
-            } catch (IllegalArgumentException ex) {
-                mt = MessageType.GAME_EVENT;
-            }
+            mt = MessageType.valueOf(type);
+        } catch (IllegalArgumentException ex) {
+            mt = MessageType.GAME_EVENT;
+        }
 
+        sendMessage(mt, payload);
+    }
+
+    public void sendMessage(MessageType mt, String payload) {
+        if (!isConnected()) return;
+        try {
             NetworkMessageDTO message = new NetworkMessageDTO(mt, payload, null);
             byte[] body = objectMapper.writeValueAsBytes(message);
 
@@ -85,12 +104,41 @@ public class NetworkClient {
             writeBuffer.put(body);           // Само сообщение
             writeBuffer.flip();
 
-            while (writeBuffer.hasRemaining()) {
-                channel.write(writeBuffer);
+            synchronized (this) {
+                while (writeBuffer.hasRemaining()) {
+                    try {
+                        channel.write(writeBuffer);
+                    } catch (IOException e) {
+                        handleSystemError("Ошибка записи в канал: " + e.getMessage());
+                        break;
+                    }
+                }
             }
         } catch (IOException e) {
-            handleSystemError("Ошибка отправки: " + e.getMessage());
+            handleSystemError("Ошибка сериализации сообщения: " + e.getMessage());
         }
+    }
+
+    /**
+     * Send asynchronously using the client's executor to avoid blocking caller threads (e.g., JavaFX thread).
+     */
+    public void sendMessageAsync(String type, String payload) {
+        MessageType mt;
+        try {
+            mt = MessageType.valueOf(type);
+        } catch (IllegalArgumentException ex) {
+            mt = MessageType.GAME_EVENT;
+        }
+        sendMessageAsync(mt, payload);
+    }
+
+    public void sendMessageAsync(MessageType mt, String payload) {
+        if (executor == null || executor.isShutdown() || !isConnected()) {
+            // fallback to synchronous send to not drop messages when executor unavailable
+            sendMessage(mt, payload);
+            return;
+        }
+        executor.submit(() -> sendMessage(mt, payload));
     }
 
     /**
@@ -110,7 +158,7 @@ public class NetworkClient {
                     if (bytesRead > 0) {
                         processBuffer();
                     }
-                    Thread.sleep(10);
+                    // In blocking mode, read() will block until data arrives or channel closes.
                 }
             } catch (Exception e) {
                 handleSystemError("Сетевая ошибка: " + e.getMessage());
@@ -124,6 +172,17 @@ public class NetworkClient {
         while (readBuffer.remaining() >= 4) {
             readBuffer.mark(); // Запоминаем позицию начала длины
             int length = readBuffer.getInt();
+
+            // Basic sanity checks for length to avoid OOM or protocol errors
+            if (length <= 0 || length > MAX_MESSAGE_SIZE) {
+                // Protocol error: invalid length
+                readBuffer.reset();
+                handleSystemError("Protocol error: invalid message length: " + length);
+                try {
+                    if (channel != null) channel.close();
+                } catch (IOException ignored) {}
+                return;
+            }
 
             if (readBuffer.remaining() < length) {
                 // Если все тело сообщения еще не дошло, откатываемся и ждем
@@ -170,6 +229,6 @@ public class NetworkClient {
     }
 
     public boolean isConnected() {
-        return connected && channel != null && channel.isConnected();
+        return connected && channel != null && channel.isOpen();
     }
 }

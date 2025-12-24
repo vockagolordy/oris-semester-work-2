@@ -1,7 +1,7 @@
 package ru.itis.scrabble.network;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ru.itis.scrabble.dto.NetworkMessage;
+import ru.itis.scrabble.dto.NetworkMessageDTO;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
@@ -26,7 +26,7 @@ public class ClientSession {
     /**
      * Отправка сообщения по протоколу [4 байта длины] + [JSON]
      */
-    public void sendMessage(NetworkMessage msg) {
+    public void sendMessage(NetworkMessageDTO msg) {
         try {
             byte[] body = mapper.writeValueAsBytes(msg);
             ByteBuffer buffer = ByteBuffer.allocate(4 + body.length);
@@ -41,6 +41,8 @@ public class ClientSession {
             System.err.println("Ошибка отправки сообщения сессии " + sessionId + ": " + e.getMessage());
         }
     }
+
+    public SocketChannel getChannel() { return channel; }
 
     // Геттеры и сеттеры
     public Long getUserId() { return userId; }

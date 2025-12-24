@@ -102,13 +102,15 @@ public class NetworkServer implements Runnable {
 
     // Метод для отправки сообщения клиенту
     public void sendMessage(SocketChannel channel, String json) throws IOException {
-        byte[] body = json.getBytes();
-        ByteBuffer header = ByteBuffer.allocate(4);
-        header.putInt(body.length);
-        header.flip();
+        byte[] body = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        ByteBuffer buffer = ByteBuffer.allocate(4 + body.length);
+        buffer.putInt(body.length);
+        buffer.put(body);
+        buffer.flip();
 
-        channel.write(header);
-        channel.write(ByteBuffer.wrap(body));
+        while (buffer.hasRemaining()) {
+            channel.write(buffer);
+        }
     }
 
     private void processBuffer(ClientSession session) {
@@ -123,6 +125,13 @@ public class NetworkServer implements Runnable {
 
             buffer.mark();
             int payloadLength = buffer.getInt();
+
+            // Sanity check to avoid invalid or malicious lengths
+            if (payloadLength <= 0 || payloadLength > buffer.capacity() - 4) {
+                System.err.println("Protocol error: invalid payload length: " + payloadLength + " in session " + session.getSessionId());
+                disconnect(session.getChannel());
+                return;
+            }
 
             if (buffer.remaining() < payloadLength) {
                 buffer.reset();

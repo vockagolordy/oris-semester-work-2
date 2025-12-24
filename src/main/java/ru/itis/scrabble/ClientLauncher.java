@@ -121,8 +121,8 @@ public class ClientLauncher extends Application {
                     // Можно добавить метод getCurrentUserId() в NavigationManager
 
                     if (userId != null) {
-                        // Отправляем команду выхода на сервер
-                        networkClient.sendMessage("LOGOUT|" + userId);
+                        // Отправляем команду выхода на сервер using framed protocol: type + payload
+                        networkClient.sendMessageAsync("LOGOUT", String.valueOf(userId));
                     }
                 }
 

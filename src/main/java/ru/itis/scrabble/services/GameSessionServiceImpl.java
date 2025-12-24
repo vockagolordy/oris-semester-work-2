@@ -25,6 +25,7 @@ public class GameSessionServiceImpl implements GameSessionService {
 
     private final Map<Integer, GameSession> games = new ConcurrentHashMap<>();
     private final Map<Integer, List<ClientSession>> roomSessions = new ConcurrentHashMap<>();
+    private final Map<Integer, java.util.concurrent.ExecutorService> roomExecutors = new ConcurrentHashMap<>();
 
     public GameSessionServiceImpl(BoardService boardService, WordService wordService,
                                   ScoringService scoringService, BagService bagService,
@@ -34,6 +35,27 @@ public class GameSessionServiceImpl implements GameSessionService {
         this.scoringService = scoringService;
         this.bagService = bagService;
         this.userService = userService;
+    }
+
+    @Override
+    public void authenticate(ClientSession session, String username, String password) {
+        try {
+            // Try to login the user via UserService (implementation may hash/verify password)
+            ru.itis.scrabble.models.User user = userService.login(username, password);
+            if (user != null) {
+                session.setUserId(user.getId());
+                session.setUsername(user.getUsername());
+                String payload = objectMapper.writeValueAsString(Map.of("userId", user.getId(), "username", user.getUsername()));
+                NetworkMessageDTO msg = new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.AUTH, "AUTH_SUCCESS|" + payload, "SERVER");
+                session.sendMessage(msg);
+            } else {
+                NetworkMessageDTO err = new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.ERROR, "AUTH_ERROR|Invalid credentials", "SERVER");
+                session.sendMessage(err);
+            }
+        } catch (Exception e) {
+            NetworkMessageDTO err = new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.ERROR, "AUTH_ERROR|" + e.getMessage(), "SERVER");
+            session.sendMessage(err);
+        }
     }
 
     @Override
@@ -49,6 +71,15 @@ public class GameSessionServiceImpl implements GameSessionService {
         GameSession game = new GameSession(board, bag, players);
         games.put(roomId, game);
         roomSessions.put(roomId, new ArrayList<>(sessions));
+
+        // Create a single-thread executor for this room to serialize game state changes
+        java.util.concurrent.ExecutorService exec = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r);
+            t.setName("game-room-" + roomId + "-executor");
+            t.setDaemon(true);
+            return t;
+        });
+        roomExecutors.put(roomId, exec);
 
         broadcastGameState(roomId);
     }
@@ -108,6 +139,12 @@ public class GameSessionServiceImpl implements GameSessionService {
             // Предполагаем, что в UserService есть метод обновления статистики
             userService.updateUserStats(player.getUserId(), player.getScore());
         }
+
+        // Shutdown room executor as game finished
+        java.util.concurrent.ExecutorService exec = roomExecutors.remove(roomId);
+        if (exec != null) {
+            exec.shutdownNow();
+        }
     }
 
     private void broadcastGameState(int roomId) {
@@ -121,10 +158,78 @@ public class GameSessionServiceImpl implements GameSessionService {
             NetworkMessageDTO syncMsg = new NetworkMessageDTO(MessageType.SYNC_STATE, gameStateJson, "SERVER");
 
             for (ClientSession session : sessions) {
-                sendMessage(session, syncMsg);
+                session.sendMessage(syncMsg);
             }
         } catch (IOException e) {
             System.err.println("Ошибка при рассылке состояния игры: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void commitTurn(ClientSession session, List<TilePlacementDTO> placements) {
+        int roomId = session.getRoomId();
+        Long userId = session.getUserId();
+
+        java.util.concurrent.ExecutorService exec = roomExecutors.get(roomId);
+        if (exec == null) {
+            // No executor available, fallback to immediate execution
+            boolean ok = makeMove(roomId, userId, placements);
+            try {
+                if (ok) session.sendMessage(new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.GAME_EVENT, "MOVE_ACCEPTED|{}", "SERVER"));
+                else session.sendMessage(new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.ERROR, "MOVE_REJECTED|Move invalid", "SERVER"));
+            } catch (Exception e) {
+                System.err.println("Error sending commit response: " + e.getMessage());
+            }
+            return;
+        }
+
+        // Submit the move to the room executor to serialize modifications
+        exec.submit(() -> {
+            boolean ok = makeMove(roomId, userId, placements);
+            try {
+                if (ok) {
+                    session.sendMessage(new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.GAME_EVENT, "MOVE_ACCEPTED|{}", "SERVER"));
+                } else {
+                    session.sendMessage(new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.ERROR, "MOVE_REJECTED|Move invalid", "SERVER"));
+                }
+            } catch (Exception e) {
+                System.err.println("Error sending commit response: " + e.getMessage());
+            }
+        });
+    }
+
+    @Override
+    public void processPreview(ClientSession session, List<TilePlacementDTO> placements) {
+        int roomId = session.getRoomId();
+        GameSession gs = games.get(roomId);
+        if (gs == null) return;
+
+        try {
+            boolean isFirstMove = gs.getBoard().isEmpty();
+            boolean geometryOk = boardService.checkGeometry(placements, gs.getBoard(), isFirstMove);
+            if (!geometryOk) {
+                session.sendMessage(new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.GAME_EVENT, "PREVIEW_INVALID|Geometry", "SERVER"));
+                return;
+            }
+
+            List<List<TilePlacementDTO>> allWords = boardService.findAllWords(placements, gs.getBoard());
+            if (!wordService.checkWords(allWords)) {
+                session.sendMessage(new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.GAME_EVENT, "PREVIEW_INVALID|Word not in dictionary", "SERVER"));
+                return;
+            }
+
+            session.sendMessage(new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.GAME_EVENT, "PREVIEW_OK|{}", "SERVER"));
+        } catch (Exception e) {
+            // ignore preview errors quietly
+        }
+    }
+
+    @Override
+    public void handleHeartbeat(ClientSession session) {
+        try {
+            session.sendMessage(new NetworkMessageDTO(ru.itis.scrabble.network.MessageType.HEARTBEAT, "HEARTBEAT_ACK|{}", "SERVER"));
+        } catch (Exception e) {
+            // ignore
         }
     }
 
@@ -136,12 +241,8 @@ public class GameSessionServiceImpl implements GameSessionService {
                 .filter(s -> userId.equals(s.getUserId()))
                 .findFirst()
                 .ifPresent(s -> {
-                    try {
-                        NetworkMessageDTO msg = new NetworkMessageDTO(MessageType.ERROR, errorText, "SERVER");
-                        sendMessage(s, msg);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    NetworkMessageDTO msg = new NetworkMessageDTO(MessageType.ERROR, errorText, "SERVER");
+                    s.sendMessage(msg);
                 });
     }
 
@@ -149,18 +250,5 @@ public class GameSessionServiceImpl implements GameSessionService {
      * Исправлено: Централизованный метод отправки.
      * Теперь строго соблюдает протокол [4 байта длины] + [JSON]
      */
-    private void sendMessage(ClientSession session, NetworkMessageDTO message) throws IOException {
-        byte[] body = objectMapper.writeValueAsBytes(message);
-
-        // Выделяем один буфер под всё сообщение (Header + Body)
-        ByteBuffer buffer = ByteBuffer.allocate(4 + body.length);
-        buffer.putInt(body.length); // 4 байта длины
-        buffer.put(body);           // Тело JSON
-        buffer.flip();
-
-        // Записываем всё в канал сессии
-        while (buffer.hasRemaining()) {
-            session.getChannel().write(buffer);
-        }
-    }
+    // Sending is delegated to ClientSession.sendMessage
 }
