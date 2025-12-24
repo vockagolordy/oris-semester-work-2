@@ -10,6 +10,11 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.VBox;
 import ru.itis.scrabble.navigation.View;
 import ru.itis.scrabble.dto.NetworkMessageDTO;
+import ru.itis.scrabble.dto.WaitingRoomInitDTO;
+import ru.itis.scrabble.dto.PlayerJoinedDTO;
+import ru.itis.scrabble.dto.PlayerReadyChangedDTO;
+import ru.itis.scrabble.dto.StartGameRequestDTO;
+import ru.itis.scrabble.network.MessageType;
 
 import java.util.*;
 
@@ -49,7 +54,31 @@ public class WaitingRoomController extends BaseController {
 
     @Override
     public void initData(Object data) {
-        if (data instanceof Map) {
+        if (data instanceof WaitingRoomInitDTO) {
+            WaitingRoomInitDTO dto = (WaitingRoomInitDTO) data;
+            roomPort = dto.port();
+            hostId = dto.hostId();
+            hostName = dto.hostName();
+            opponentId = dto.opponentId();
+            opponentName = dto.opponentName();
+            isHost = hostId != null && hostId.equals(currentUserId);
+
+            updateUI();
+
+            // Notify server we've joined
+            Map<String, Object> joinMsg = Map.of(
+                "roomPort", roomPort,
+                "userId", currentUserId,
+                "username", currentUsername
+            );
+            sendJsonCommand("ROOM_JOIN", joinMsg);
+
+            // Request room info
+            sendJsonCommand("GET_ROOM_INFO", Map.of("port", roomPort));
+
+            startTimer();
+        } else if (data instanceof Map) {
+            // Legacy fallback
             Map<String, Object> roomData = (Map<String, Object>) data;
             roomPort = (int) roomData.get("port");
             hostId = (Long) roomData.get("hostId");
@@ -62,8 +91,6 @@ public class WaitingRoomController extends BaseController {
             }
 
             updateUI();
-
-            // Отправляем сообщение о входе в комнату
             Map<String, Object> joinMsg = Map.of(
                 "type", "JOIN_ROOM",
                 "roomPort", roomPort,
@@ -71,10 +98,7 @@ public class WaitingRoomController extends BaseController {
                 "username", currentUsername
             );
             sendNetworkMessage("ROOM_JOIN", joinMsg);
-
-            // Запрашиваем обновленную информацию о комнате
             sendNetworkMessage("GET_ROOM_INFO", Map.of("port", roomPort));
-
             startTimer();
         }
     }
@@ -106,13 +130,12 @@ public class WaitingRoomController extends BaseController {
         isReady = !isReady;
 
         Map<String, Object> readyMsg = Map.of(
-            "type", "PLAYER_READY",
             "roomPort", roomPort,
             "userId", currentUserId,
             "isReady", isReady
         );
 
-        sendNetworkMessage("PLAYER_READY", readyMsg);
+        sendJsonCommand("PLAYER_READY", readyMsg);
 
         if (isReady) {
             readyButton.setText("Не готов");
@@ -129,13 +152,8 @@ public class WaitingRoomController extends BaseController {
             return;
         }
 
-        Map<String, Object> startMsg = Map.of(
-            "type", "START_GAME",
-            "roomPort", roomPort,
-            "hostId", hostId
-        );
-
-        sendNetworkMessage("START_GAME", startMsg);
+        StartGameRequestDTO dto = new StartGameRequestDTO(roomPort, hostId);
+        sendJsonCommand("START_GAME", dto);
 
         // Показываем индикатор загрузки
         readyStatusLabel.setText("Начинаем игру...");
@@ -144,24 +162,22 @@ public class WaitingRoomController extends BaseController {
 
     private void leaveRoom() {
         Map<String, Object> leaveMsg = Map.of(
-            "type", "LEAVE_ROOM",
             "roomPort", roomPort,
             "userId", currentUserId
         );
 
-        sendNetworkMessage("LEAVE_ROOM", leaveMsg);
+        sendJsonCommand("LEAVE_ROOM", leaveMsg);
 
         navigator.navigate(View.MAIN_MENU);
     }
 
     private void reconnectToGame() {
         Map<String, Object> reconnectMsg = Map.of(
-            "type", "RECONNECT_GAME",
             "roomPort", roomPort,
             "userId", currentUserId
         );
 
-        sendNetworkMessage("RECONNECT", reconnectMsg);
+        sendJsonCommand("RECONNECT", reconnectMsg);
     }
 
     private void startTimer() {
@@ -187,59 +203,55 @@ public class WaitingRoomController extends BaseController {
     public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
-                String payload = message.payload();
-                if (payload.startsWith("PLAYER_JOINED|")) {
-                    String json = payload.substring("PLAYER_JOINED|".length());
-                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
+                String raw = message.payload() != null ? message.payload() : "";
+                String prefix;
+                String json;
+                int sep = raw.indexOf('|');
+                if (sep > 0) {
+                    prefix = raw.substring(0, sep);
+                    json = raw.substring(sep + 1);
+                } else {
+                    prefix = message.type() != null ? message.type().name() : "";
+                    json = raw;
+                }
 
-                    opponentName = (String) response.get("username");
-                    opponentId = ((Number) response.get("userId")).longValue();
-
+                if ("PLAYER_JOINED".equals(prefix)) {
+                    PlayerJoinedDTO dto = objectMapper.readValue(json, PlayerJoinedDTO.class);
+                    opponentName = dto.username();
+                    opponentId = dto.userId();
                     updateUI();
 
-                } else if (payload.startsWith("PLAYER_LEFT|")) {
-                    String json = payload.substring("PLAYER_LEFT|".length());
-                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
-
+                } else if ("PLAYER_LEFT".equals(prefix)) {
+                    // No payload expected; remove opponent
                     opponentName = null;
                     opponentId = null;
-
                     updateUI();
                     navigator.showDialog("Игрок вышел", "Другой игрок покинул комнату");
 
-                } else if (payload.startsWith("PLAYER_READY_CHANGED|")) {
-                    String json = payload.substring("PLAYER_READY_CHANGED|".length());
-                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
-
-                    Long playerId = ((Number) response.get("userId")).longValue();
-                    boolean playerReady = (boolean) response.get("isReady");
-
+                } else if ("PLAYER_READY_CHANGED".equals(prefix)) {
+                    PlayerReadyChangedDTO dto = objectMapper.readValue(json, PlayerReadyChangedDTO.class);
+                    Long playerId = dto.userId();
+                    boolean playerReady = dto.isReady();
                     if (playerId.equals(opponentId)) {
-                        readyStatusLabel.setText(
-                            opponentName + " " + (playerReady ? "готов" : "не готов")
-                        );
+                        readyStatusLabel.setText(opponentName + " " + (playerReady ? "готов" : "не готов"));
                     }
 
-                } else if (payload.startsWith("GAME_STARTING|")) {
+                } else if ("GAME_STARTING".equals(prefix)) {
                     // Игра начинается, переходим к выбору первого игрока
-                    navigator.navigate(View.CHOOSE_FIRST_PLAYER, Map.of(
-                        "roomPort", roomPort,
-                        "hostId", hostId,
-                        "hostName", hostName,
-                        "opponentId", opponentId,
-                        "opponentName", opponentName
+                    navigator.navigate(View.CHOOSE_FIRST_PLAYER, new ru.itis.scrabble.dto.ChooseFirstPlayerInitDTO(
+                        roomPort, hostId, hostName, opponentId, opponentName
                     ));
 
-                } else if (payload.startsWith("ROOM_CLOSED|")) {
+                } else if ("ROOM_CLOSED".equals(prefix)) {
                     navigator.showError("Комната закрыта", "Хост закрыл комнату");
                     navigator.navigate(View.MAIN_MENU);
 
-                } else if (payload.startsWith("RECONNECT_AVAILABLE|")) {
+                } else if ("RECONNECT_AVAILABLE".equals(prefix)) {
                     // Есть сохраненная игра
                     reconnectPanel.setVisible(true);
 
-                } else if (payload.startsWith("ERROR|")) {
-                    String error = payload.substring("ERROR|".length());
+                } else if ("ERROR".equals(prefix) || MessageType.ERROR.name().equals(prefix)) {
+                    String error = json != null ? json : "";
                     navigator.showError("Ошибка", error);
                 }
             } catch (Exception e) {

@@ -8,6 +8,7 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import ru.itis.scrabble.navigation.View;
 import ru.itis.scrabble.dto.NetworkMessageDTO;
+import ru.itis.scrabble.network.MessageType;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -176,40 +177,42 @@ public class GameOverController extends BaseController {
     public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
-                String payload = message.payload();
-                if (payload.startsWith("PLAY_AGAIN_ACCEPTED|")) {
-                    // Оба игрока согласились играть снова
-                    String json = payload.substring("PLAY_AGAIN_ACCEPTED|".length());
-                    Map<String, Object> response = new ObjectMapper().readValue(json, Map.class);
+                String raw = message.payload() != null ? message.payload() : "";
+                String prefix;
+                String json;
+                int sep = raw.indexOf('|');
+                if (sep > 0) {
+                    prefix = raw.substring(0, sep);
+                    json = raw.substring(sep + 1);
+                } else {
+                    prefix = message.type() != null ? message.type().name() : "";
+                    json = raw;
+                }
 
+                if ("PLAY_AGAIN_ACCEPTED".equals(prefix)) {
+                    Map<String, Object> response = new ObjectMapper().readValue(json, Map.class);
                     int newRoomPort = (int) response.get("newRoomPort");
                     Long opponentId = ((Number) response.get("opponentId")).longValue();
                     String opponentName = (String) response.get("opponentName");
-
-                    // Переходим в комнату ожидания новой игры
                     Map<String, Object> roomData = new HashMap<>();
                     roomData.put("port", newRoomPort);
                     roomData.put("hostId", currentUserId);
                     roomData.put("hostName", currentUsername);
                     roomData.put("opponentId", opponentId);
                     roomData.put("opponentName", opponentName);
-
                     navigator.navigate(View.WAITING_ROOM, roomData);
 
-                } else if (payload.startsWith("PLAY_AGAIN_REJECTED|")) {
-                    // Противник отказался играть снова
-                    String opponentName = payload.substring("PLAY_AGAIN_REJECTED|".length());
-                    navigator.showDialog("Повторная игра",
-                        opponentName + " отказался играть снова");
+                } else if ("PLAY_AGAIN_REJECTED".equals(prefix)) {
+                    String opponentName = json != null ? json : "";
+                    navigator.showDialog("Повторная игра", opponentName + " отказался играть снова");
                     playAgainButton.setDisable(false);
                     playAgainButton.setText("Играть снова");
 
-                } else if (payload.startsWith("STATISTICS_UPDATED|")) {
-                    // Статистика обновлена на сервере
+                } else if ("STATISTICS_UPDATED".equals(prefix)) {
                     System.out.println("Статистика игрока обновлена");
 
-                } else if (payload.startsWith("ERROR|")) {
-                    String error = payload.substring("ERROR|".length());
+                } else if ("ERROR".equals(prefix) || MessageType.ERROR.name().equals(prefix)) {
+                    String error = json != null ? json : "";
                     navigator.showError("Ошибка", error);
                     playAgainButton.setDisable(false);
                     playAgainButton.setText("Играть снова");

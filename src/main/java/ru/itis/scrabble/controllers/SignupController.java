@@ -8,6 +8,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import ru.itis.scrabble.dto.NetworkMessageDTO;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.network.MessageType;
 
 import java.util.Map;
 
@@ -85,26 +86,32 @@ public class SignupController extends BaseController {
     public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
-                String payload = message.payload();
-                if (payload.startsWith("REGISTER_SUCCESS|")) {
-                    // Формат: REGISTER_SUCCESS|{"userId":123,"username":"name"}
-                    String json = payload.substring("REGISTER_SUCCESS|".length());
-                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
+                String raw = message.payload() != null ? message.payload() : "";
+                String prefix;
+                String json;
+                int sep = raw.indexOf('|');
+                if (sep > 0) {
+                    prefix = raw.substring(0, sep);
+                    json = raw.substring(sep + 1);
+                } else {
+                    prefix = message.type() != null ? message.type().name() : "";
+                    json = raw;
+                }
 
+                if ("REGISTER_SUCCESS".equals(prefix)) {
+                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
                     Long userId = ((Number) response.get("userId")).longValue();
                     String username = (String) response.get("username");
-
-                    // Автоматически логинимся после регистрации
                     navigator.setCurrentUser(userId, username);
                     navigator.navigate(View.MAIN_MENU);
 
-                } else if (payload.startsWith("REGISTER_ERROR|")) {
-                    String error = payload.substring("REGISTER_ERROR|".length());
+                } else if ("REGISTER_ERROR".equals(prefix)) {
+                    String error = json != null ? json : "";
                     showError("Ошибка регистрации: " + error);
                     registerButton.setDisable(false);
 
-                } else if (payload.startsWith("ERROR|")) {
-                    String error = payload.substring("ERROR|".length());
+                } else if ("ERROR".equals(prefix) || MessageType.ERROR.name().equals(prefix)) {
+                    String error = json != null ? json : "";
                     showError("Ошибка: " + error);
                     registerButton.setDisable(false);
                 }

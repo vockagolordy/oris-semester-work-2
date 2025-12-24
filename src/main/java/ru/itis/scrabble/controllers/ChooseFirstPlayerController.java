@@ -8,6 +8,10 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.VBox;
 import ru.itis.scrabble.navigation.View;
 import ru.itis.scrabble.dto.NetworkMessageDTO;
+import ru.itis.scrabble.dto.ChooseFirstPlayerInitDTO;
+import ru.itis.scrabble.dto.FirstPlayerDeterminedDTO;
+import ru.itis.scrabble.dto.StartGameSessionDTO;
+import ru.itis.scrabble.network.MessageType;
 
 import java.util.Map;
 import java.util.Random;
@@ -43,7 +47,18 @@ public class ChooseFirstPlayerController extends BaseController {
 
     @Override
     public void initData(Object data) {
-        if (data instanceof Map) {
+        if (data instanceof ChooseFirstPlayerInitDTO) {
+            ChooseFirstPlayerInitDTO dto = (ChooseFirstPlayerInitDTO) data;
+            roomPort = dto.roomPort();
+            player1Id = dto.hostId();
+            player1Name = dto.hostName();
+            player2Id = dto.opponentId();
+            player2Name = dto.opponentName();
+
+            updatePlayerCards();
+            determineFirstPlayer();
+        } else if (data instanceof Map) {
+            // legacy fallback
             Map<String, Object> gameData = (Map<String, Object>) data;
             roomPort = (int) gameData.get("roomPort");
             player1Id = (Long) gameData.get("hostId");
@@ -77,13 +92,8 @@ public class ChooseFirstPlayerController extends BaseController {
                 String firstPlayerName = player1Starts ? player1Name : player2Name;
 
                 // Отправляем результат на сервер
-                Map<String, Object> result = Map.of(
-                    "roomPort", roomPort,
-                    "firstPlayerId", firstPlayerId,
-                    "firstPlayerName", firstPlayerName
-                );
-
-                sendNetworkMessage("FIRST_PLAYER_DETERMINED", result);
+                FirstPlayerDeterminedDTO result = new FirstPlayerDeterminedDTO(roomPort, firstPlayerId, firstPlayerName);
+                sendJsonCommand("FIRST_PLAYER_DETERMINED", result);
 
                 // Показываем результат в UI
                 Platform.runLater(() -> {
@@ -126,24 +136,28 @@ public class ChooseFirstPlayerController extends BaseController {
 
     private void startGame() {
         // Запрашиваем начало игры у сервера
-        Map<String, Object> startMsg = Map.of(
-            "type", "START_GAME_SESSION",
-            "roomPort", roomPort
-        );
-
-        sendNetworkMessage("START_GAME_SESSION", startMsg);
+        StartGameSessionDTO dto = new StartGameSessionDTO(roomPort);
+        sendJsonCommand("START_GAME_SESSION", dto);
     }
 
     @Override
     public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
-                String payload = message.payload();
-                if (payload.startsWith("GAME_SESSION_STARTED|")) {
-                    // Игровая сессия создана, переходим в игру
-                    String json = payload.substring("GAME_SESSION_STARTED|".length());
-                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
+                String raw = message.payload() != null ? message.payload() : "";
+                String prefix;
+                String json;
+                int sep = raw.indexOf('|');
+                if (sep > 0) {
+                    prefix = raw.substring(0, sep);
+                    json = raw.substring(sep + 1);
+                } else {
+                    prefix = message.type() != null ? message.type().name() : "";
+                    json = raw;
+                }
 
+                if ("GAME_SESSION_STARTED".equals(prefix)) {
+                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
                     navigator.navigate(View.GAME, Map.of(
                         "roomPort", roomPort,
                         "player1Id", player1Id,
@@ -153,8 +167,8 @@ public class ChooseFirstPlayerController extends BaseController {
                         "gameState", response.get("gameState")
                     ));
 
-                } else if (payload.startsWith("ERROR|")) {
-                    String error = payload.substring("ERROR|".length());
+                } else if ("ERROR".equals(prefix) || MessageType.ERROR.name().equals(prefix)) {
+                    String error = json != null ? json : "";
                     navigator.showError("Ошибка", error);
                 }
             } catch (Exception e) {

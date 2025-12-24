@@ -10,6 +10,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import ru.itis.scrabble.navigation.View;
 import ru.itis.scrabble.dto.NetworkMessageDTO;
+import ru.itis.scrabble.network.MessageType;
 
 import java.util.List;
 import java.util.Map;
@@ -167,11 +168,20 @@ public class RoomListController extends BaseController {
         Platform.runLater(() -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
-                String payload = message.payload();
+                String raw = message.payload() != null ? message.payload() : "";
+                String prefix;
+                String json;
+                int sep = raw.indexOf('|');
+                if (sep > 0) {
+                    prefix = raw.substring(0, sep);
+                    json = raw.substring(sep + 1);
+                } else {
+                    prefix = message.type() != null ? message.type().name() : "";
+                    json = raw;
+                }
 
-                if (payload.startsWith("ROOM_LIST|")) {
+                if ("ROOM_LIST".equals(prefix)) {
                     // Получен список комнат
-                    String json = payload.substring("ROOM_LIST|".length());
                     Map<String, Object> response = mapper.readValue(json, Map.class);
 
                     @SuppressWarnings("unchecked")
@@ -203,9 +213,8 @@ public class RoomListController extends BaseController {
                         clearError();
                     }
 
-                } else if (payload.startsWith("JOIN_SUCCESS|")) {
+                } else if ("JOIN_SUCCESS".equals(prefix)) {
                     // Успешно присоединились к комнате
-                    String json = payload.substring("JOIN_SUCCESS|".length());
                     Map<String, Object> response = mapper.readValue(json, Map.class);
 
                     int port = ((Number) response.get("port")).intValue();
@@ -234,48 +243,48 @@ public class RoomListController extends BaseController {
 
                     navigator.navigate(View.WAITING_ROOM, roomData);
 
-                } else if (payload.startsWith("JOIN_ERROR|")) {
+                } else if ("JOIN_ERROR".equals(prefix)) {
                     // Ошибка при присоединении
-                    String error = payload.substring("JOIN_ERROR|".length());
+                    String error = json != null ? json : "";
                     showError("Ошибка подключения: " + error);
 
                     // Восстанавливаем кнопки
                     joinButton.setDisable(false);
                     connectButton.setDisable(false);
 
-                } else if (payload.startsWith("ROOM_FULL|")) {
+                } else if ("ROOM_FULL".equals(prefix)) {
                     showError("Комната уже заполнена (максимум 2 игрока)");
                     joinButton.setDisable(false);
                     connectButton.setDisable(false);
 
-                } else if (payload.startsWith("ROOM_NOT_FOUND|")) {
+                } else if ("ROOM_NOT_FOUND".equals(prefix)) {
                     showError("Комната не найдена или уже закрыта");
                     joinButton.setDisable(false);
                     connectButton.setDisable(false);
 
-                } else if (payload.startsWith("ROOM_CLOSED|")) {
+                } else if ("ROOM_CLOSED".equals(prefix)) {
                     showError("Комната была закрыта создателем");
                     joinButton.setDisable(false);
                     connectButton.setDisable(false);
 
-                } else if (payload.startsWith("ALREADY_IN_ROOM|")) {
+                } else if ("ALREADY_IN_ROOM".equals(prefix)) {
                     showError("Вы уже находитесь в комнате");
                     joinButton.setDisable(false);
                     connectButton.setDisable(false);
 
-                } else if (payload.startsWith("GAME_IN_PROGRESS|")) {
+                } else if ("GAME_IN_PROGRESS".equals(prefix)) {
                     showError("В этой комнате уже идет игра");
                     joinButton.setDisable(false);
                     connectButton.setDisable(false);
 
-                } else if (payload.startsWith("INVALID_ROOM|")) {
+                } else if ("INVALID_ROOM".equals(prefix)) {
                     showError("Некорректная комната");
                     joinButton.setDisable(false);
                     connectButton.setDisable(false);
 
-                } else if (payload.startsWith("ERROR|")) {
+                } else if ("ERROR".equals(prefix) || MessageType.ERROR.name().equals(prefix)) {
                     // Общая ошибка
-                    String error = payload.substring("ERROR|".length());
+                    String error = json != null ? json : "";
                     showError("Ошибка: " + error);
 
                     // Восстанавливаем кнопки
@@ -284,17 +293,17 @@ public class RoomListController extends BaseController {
                     joinButton.setDisable(false);
                     connectButton.setDisable(false);
 
-                } else if (payload.startsWith("ROOM_CREATED_BROADCAST|")) {
+                } else if ("ROOM_CREATED_BROADCAST".equals(prefix)) {
                     // Кто-то создал новую комнату - обновляем список
                     loadRoomList();
 
-                } else if (payload.startsWith("ROOM_CLOSED_BROADCAST|")) {
+                } else if ("ROOM_CLOSED_BROADCAST".equals(prefix)) {
                     // Кто-то закрыл комнату - обновляем список
                     loadRoomList();
 
-                } else if (payload.startsWith("NEW_ROOM_AVAILABLE|")) {
+                } else if ("NEW_ROOM_AVAILABLE".equals(prefix)) {
                     // Новая комната доступна - показываем уведомление
-                    String roomInfo = payload.substring("NEW_ROOM_AVAILABLE|".length());
+                    String roomInfo = json != null ? json : "";
                     navigator.showDialog("Новая комната",
                         "Появилась новая комната: " + roomInfo + "\n" +
                         "Обновите список, чтобы увидеть её.");

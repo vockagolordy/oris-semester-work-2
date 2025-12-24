@@ -12,6 +12,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
 import ru.itis.scrabble.navigation.View;
 import ru.itis.scrabble.dto.NetworkMessageDTO;
+import ru.itis.scrabble.network.MessageType;
 
 import java.util.Map;
 
@@ -171,16 +172,22 @@ public class TilesStylesController extends BaseController {
         Platform.runLater(() -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
-                String payload = message.payload();
+                String raw = message.payload() != null ? message.payload() : "";
+                String prefix;
+                String json;
+                int sep = raw.indexOf('|');
+                if (sep > 0) {
+                    prefix = raw.substring(0, sep);
+                    json = raw.substring(sep + 1);
+                } else {
+                    prefix = message.type() != null ? message.type().name() : "";
+                    json = raw;
+                }
 
-                if (payload.startsWith("CURRENT_STYLE|")) {
-                    String json = payload.substring("CURRENT_STYLE|".length());
+                if ("CURRENT_STYLE".equals(prefix)) {
                     Map<String, Object> response = mapper.readValue(json, Map.class);
-
                     int styleId = ((Number) response.get("styleId")).intValue();
                     selectStyle(styleId);
-
-                    // Выбираем соответствующую радиокнопку
                     switch (styleId) {
                         case 1 -> classicRadio.setSelected(true);
                         case 2 -> modernRadio.setSelected(true);
@@ -190,35 +197,26 @@ public class TilesStylesController extends BaseController {
                         case 6 -> autumnRadio.setSelected(true);
                     }
 
-                } else if (payload.startsWith("STYLE_UPDATED|")) {
-                    String json = payload.substring("STYLE_UPDATED|".length());
+                } else if ("STYLE_UPDATED".equals(prefix)) {
                     Map<String, Object> response = mapper.readValue(json, Map.class);
-
                     int newStyleId = ((Number) response.get("styleId")).intValue();
                     String styleName = (String) response.get("styleName");
-
-                    navigator.showDialog("Стиль изменен",
-                        "Стиль успешно изменен на: " + styleName);
-
+                    navigator.showDialog("Стиль изменен", "Стиль успешно изменен на: " + styleName);
                     applyButton.setDisable(false);
                     applyButton.setText("Применить стиль");
                     statusLabel.setText("Стиль успешно применен");
-
-                    // Обновляем превью
                     selectStyle(newStyleId);
 
-                } else if (payload.startsWith("STYLE_UPDATE_ERROR|")) {
-                    String error = payload.substring("STYLE_UPDATE_ERROR|".length());
+                } else if ("STYLE_UPDATE_ERROR".equals(prefix)) {
+                    String error = json != null ? json : "";
                     navigator.showError("Ошибка", "Не удалось изменить стиль: " + error);
-
                     applyButton.setDisable(false);
                     applyButton.setText("Применить стиль");
                     statusLabel.setText("Ошибка применения стиля");
 
-                } else if (payload.startsWith("ERROR|")) {
-                    String error = payload.substring("ERROR|".length());
+                } else if ("ERROR".equals(prefix) || MessageType.ERROR.name().equals(prefix)) {
+                    String error = json != null ? json : "";
                     navigator.showError("Ошибка", error);
-
                     applyButton.setDisable(false);
                     applyButton.setText("Применить стиль");
                     statusLabel.setText("");

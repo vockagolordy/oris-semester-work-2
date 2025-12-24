@@ -8,6 +8,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import ru.itis.scrabble.navigation.View;
 import ru.itis.scrabble.dto.NetworkMessageDTO;
+import ru.itis.scrabble.network.MessageType;
 
 import java.util.Map;
 
@@ -68,28 +69,34 @@ public class LoginController extends BaseController {
     public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
-                String payload = message.payload();
-                if (payload.startsWith("AUTH_SUCCESS|")) {
-                    // Формат: AUTH_SUCCESS|{"userId":123,"username":"name"}
-                    String json = payload.substring("AUTH_SUCCESS|".length());
-                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
+                String raw = message.payload() != null ? message.payload() : "";
 
+                String prefix;
+                String json;
+
+                int sep = raw.indexOf('|');
+                if (sep > 0) {
+                    prefix = raw.substring(0, sep);
+                    json = raw.substring(sep + 1);
+                } else {
+                    prefix = message.type() != null ? message.type().name() : "";
+                    json = raw;
+                }
+
+                if ("AUTH_SUCCESS".equals(prefix)) {
+                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
                     Long userId = ((Number) response.get("userId")).longValue();
                     String username = (String) response.get("username");
-
-                    // Сохраняем данные пользователя в навигаторе
                     navigator.setCurrentUser(userId, username);
-
-                    // Переходим в главное меню
                     navigator.navigate(View.MAIN_MENU);
 
-                } else if (payload.startsWith("AUTH_ERROR|")) {
-                    String error = payload.substring("AUTH_ERROR|".length());
+                } else if ("AUTH_ERROR".equals(prefix)) {
+                    String error = json != null ? json : "";
                     showError("Ошибка авторизации: " + error);
                     loginButton.setDisable(false);
 
-                } else if (payload.startsWith("ERROR|")) {
-                    String error = payload.substring("ERROR|".length());
+                } else if ("ERROR".equals(prefix) || MessageType.ERROR.name().equals(prefix)) {
+                    String error = json != null ? json : "";
                     showError("Ошибка: " + error);
                     loginButton.setDisable(false);
                 }

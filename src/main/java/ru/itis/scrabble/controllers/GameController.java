@@ -14,6 +14,7 @@ import ru.itis.scrabble.dto.TilePlacementDTO;
 import ru.itis.scrabble.models.*;
 import ru.itis.scrabble.navigation.View;
 import ru.itis.scrabble.dto.NetworkMessageDTO;
+import ru.itis.scrabble.network.MessageType;
 
 import java.util.*;
 
@@ -476,37 +477,42 @@ public class GameController extends BaseController {
         Platform.runLater(() -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
-                String payload = message.payload();
+                String raw = message.payload() != null ? message.payload() : "";
+                String prefix;
+                String json;
+                int sep = raw.indexOf('|');
+                if (sep > 0) {
+                    prefix = raw.substring(0, sep);
+                    json = raw.substring(sep + 1);
+                } else {
+                    prefix = message.type() != null ? message.type().name() : "";
+                    json = raw;
+                }
 
-                if (payload.startsWith("GAME_STATE_UPDATE|")) {
-                    String json = payload.substring("GAME_STATE_UPDATE|".length());
+                if ("GAME_STATE_UPDATE".equals(prefix)) {
                     GameStateDTO gameState = mapper.readValue(json, GameStateDTO.class);
                     updateGameState(gameState);
                     turnCount++;
 
-                } else if (payload.startsWith("MOVE_ACCEPTED|")) {
-                    String json = payload.substring("MOVE_ACCEPTED|".length());
+                } else if ("MOVE_ACCEPTED".equals(prefix)) {
                     Map<String, Object> response = mapper.readValue(json, Map.class);
-
                     int score = ((Number) response.get("score")).intValue();
                     navigator.showDialog("Ход принят",
                         "Вы получили " + score + " очков!");
 
-                } else if (payload.startsWith("MOVE_REJECTED|")) {
-                    String error = payload.substring("MOVE_REJECTED|".length());
+                } else if ("MOVE_REJECTED".equals(prefix)) {
+                    String error = json != null ? json : "";
                     navigator.showError("Ход отклонен", error);
                     confirmMoveButton.setDisable(false);
 
-                } else if (payload.startsWith("TURN_SKIPPED|")) {
+                } else if ("TURN_SKIPPED".equals(prefix)) {
                     navigator.showDialog("Ход пропущен", "Вы пропустили ход");
 
-                } else if (payload.startsWith("TILES_CHANGED|")) {
+                } else if ("TILES_CHANGED".equals(prefix)) {
                     navigator.showDialog("Фишки заменены", "Фишки успешно заменены");
 
-                } else if (payload.startsWith("DRAW_OFFERED|")) {
-                    String json = payload.substring("DRAW_OFFERED|".length());
+                } else if ("DRAW_OFFERED".equals(prefix)) {
                     Map<String, Object> response = mapper.readValue(json, Map.class);
-
                     String opponentName = (String) response.get("opponentName");
 
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
@@ -523,25 +529,21 @@ public class GameController extends BaseController {
                         ));
                     });
 
-                } else if (payload.startsWith("DRAW_ACCEPTED|")) {
+                } else if ("DRAW_ACCEPTED".equals(prefix)) {
                     navigator.showDialog("Ничья", "Оба игрока согласились на ничью");
                     endGame();
 
-                } else if (payload.startsWith("DRAW_REJECTED|")) {
+                } else if ("DRAW_REJECTED".equals(prefix)) {
                     navigator.showDialog("Ничья отклонена", "Противник отклонил предложение ничьей");
 
-                } else if (payload.startsWith("PLAYER_SURRENDERED|")) {
-                    String json = payload.substring("PLAYER_SURRENDERED|".length());
+                } else if ("PLAYER_SURRENDERED".equals(prefix)) {
                     Map<String, Object> response = mapper.readValue(json, Map.class);
-
                     String playerName = (String) response.get("playerName");
                     navigator.showDialog("Сдача", playerName + " сдался!");
                     endGame();
 
-                } else if (payload.startsWith("GAME_OVER|")) {
-                    String json = payload.substring("GAME_OVER|".length());
+                } else if ("GAME_OVER".equals(prefix)) {
                     Map<String, Object> response = mapper.readValue(json, Map.class);
-
                     Long winnerId = ((Number) response.get("winnerId")).longValue();
                     String winnerName = (String) response.get("winnerName");
 
@@ -552,8 +554,8 @@ public class GameController extends BaseController {
 
                     endGame();
 
-                } else if (payload.startsWith("ERROR|")) {
-                    String error = payload.substring("ERROR|".length());
+                } else if ("ERROR".equals(prefix) || MessageType.ERROR.name().equals(prefix)) {
+                    String error = json != null ? json : "";
                     navigator.showError("Ошибка", error);
                     confirmMoveButton.setDisable(false);
                 }

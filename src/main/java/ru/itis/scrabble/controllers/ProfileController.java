@@ -8,6 +8,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextInputDialog;
 import ru.itis.scrabble.navigation.View;
 import ru.itis.scrabble.dto.NetworkMessageDTO;
+import ru.itis.scrabble.network.MessageType;
 
 import java.util.Map;
 
@@ -118,10 +119,19 @@ public class ProfileController extends BaseController {
         Platform.runLater(() -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
-                String payload = message.payload();
+                String raw = message.payload() != null ? message.payload() : "";
+                String prefix;
+                String json;
+                int sep = raw.indexOf('|');
+                if (sep > 0) {
+                    prefix = raw.substring(0, sep);
+                    json = raw.substring(sep + 1);
+                } else {
+                    prefix = message.type() != null ? message.type().name() : "";
+                    json = raw;
+                }
 
-                if (payload.startsWith("USER_STATS|")) {
-                    String json = payload.substring("USER_STATS|".length());
+                if ("USER_STATS".equals(prefix)) {
                     Map<String, Object> stats = mapper.readValue(json, Map.class);
 
                     userStats.totalGames = ((Number) stats.getOrDefault("totalGames", 0)).intValue();
@@ -142,25 +152,20 @@ public class ProfileController extends BaseController {
 
                     updateUI();
 
-                } else if (payload.startsWith("USERNAME_UPDATED|")) {
-                    String json = payload.substring("USERNAME_UPDATED|".length());
+                } else if ("USERNAME_UPDATED".equals(prefix)) {
                     Map<String, Object> response = mapper.readValue(json, Map.class);
-
                     String newUsername = (String) response.get("username");
                     currentUsername = newUsername;
-
-                    // Обновляем в навигаторе
                     navigator.setCurrentUser(currentUserId, currentUsername);
-
                     navigator.showDialog("Успех", "Имя пользователя изменено на: " + newUsername);
                     loadProfileData(); // Перезагружаем данные
 
-                } else if (payload.startsWith("USERNAME_UPDATE_ERROR|")) {
-                    String error = payload.substring("USERNAME_UPDATE_ERROR|".length());
+                } else if ("USERNAME_UPDATE_ERROR".equals(prefix)) {
+                    String error = json != null ? json : "";
                     navigator.showError("Ошибка", "Не удалось изменить имя: " + error);
 
-                } else if (payload.startsWith("ERROR|")) {
-                    String error = payload.substring("ERROR|".length());
+                } else if ("ERROR".equals(prefix) || MessageType.ERROR.name().equals(prefix)) {
+                    String error = json != null ? json : "";
                     navigator.showError("Ошибка", error);
                     refreshButton.setDisable(false);
                     refreshButton.setText("Обновить");

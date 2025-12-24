@@ -72,10 +72,20 @@ public class MainMenuController extends BaseController {
     public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             // Обработка сообщений, специфичных для главного меню
-            String payload = message.payload();
-            if (payload.startsWith("INVITATION|")) {
-                // Приглашение в комнату от другого игрока
-                String roomInfo = payload.substring("INVITATION|".length());
+            String raw = message.payload() != null ? message.payload() : "";
+            String prefix;
+            String data;
+            int sep = raw.indexOf('|');
+            if (sep > 0) {
+                prefix = raw.substring(0, sep);
+                data = raw.substring(sep + 1);
+            } else {
+                prefix = message.type() != null ? message.type().name() : "";
+                data = raw;
+            }
+
+            if ("INVITATION".equals(prefix)) {
+                String roomInfo = data != null ? data : "";
                 navigator.showDialog("Приглашение в игру",
                     "Вас приглашают в комнату: " + roomInfo + "\n" +
                     "Перейти в список комнат?");

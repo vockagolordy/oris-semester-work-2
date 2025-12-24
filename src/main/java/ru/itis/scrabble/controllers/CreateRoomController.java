@@ -137,40 +137,43 @@ public class CreateRoomController extends BaseController {
     public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
-                String payload = message.payload();
-                if (payload.startsWith("ROOM_CREATED|")) {
-                    // Комната создана успешно
-                    String json = payload.substring("ROOM_CREATED|".length());
-                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
+                String raw = message.payload() != null ? message.payload() : "";
+                String prefix;
+                String json;
+                int sep = raw.indexOf('|');
+                if (sep > 0) {
+                    prefix = raw.substring(0, sep);
+                    json = raw.substring(sep + 1);
+                } else {
+                    prefix = message.type() != null ? message.type().name() : "";
+                    json = raw;
+                }
 
+                if ("ROOM_CREATED".equals(prefix)) {
+                    // Комната создана успешно
+                    Map<String, Object> response = objectMapper.readValue(json, Map.class);
                     waitingForPlayer = true;
                     showWaitingPanel();
 
-                } else if (payload.startsWith("PLAYER_JOINED|")) {
+                } else if ("PLAYER_JOINED".equals(prefix)) {
                     // Второй игрок присоединился
-                    String json = payload.substring("PLAYER_JOINED|".length());
                     Map<String, Object> response = objectMapper.readValue(json, Map.class);
-
                     String opponentName = (String) response.get("opponentName");
                     Long opponentId = ((Number) response.get("opponentId")).longValue();
-
                     waitingForPlayer = false;
-
-                    // Переходим в комнату ожидания
                     Map<String, Object> roomData = new HashMap<>();
                     roomData.put("port", roomPort);
                     roomData.put("hostId", currentUserId);
                     roomData.put("opponentId", opponentId);
                     roomData.put("opponentName", opponentName);
-
                     navigator.navigate(View.WAITING_ROOM, roomData);
 
-                } else if (payload.startsWith("ROOM_ERROR|")) {
-                    String error = payload.substring("ROOM_ERROR|".length());
+                } else if ("ROOM_ERROR".equals(prefix)) {
+                    String error = json != null ? json : "";
                     showError("Ошибка создания комнаты: " + error);
                     createButton.setDisable(false);
 
-                } else if (payload.startsWith("PORT_IN_USE|")) {
+                } else if ("PORT_IN_USE".equals(prefix)) {
                     showError("Этот порт уже используется");
                     createButton.setDisable(false);
                 }
