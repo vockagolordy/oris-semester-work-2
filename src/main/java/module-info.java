@@ -4,6 +4,7 @@ module ru.itis.scrabble {
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.databind;
     requires jakarta.persistence;
+    requires jbcrypt;
 
 
     opens ru.itis.scrabble to javafx.fxml;
