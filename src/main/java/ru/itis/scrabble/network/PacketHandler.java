@@ -8,6 +8,7 @@ import ru.itis.scrabble.dto.TilePlacementDTO;
 import ru.itis.scrabble.services.GameSessionService;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Диспетчер пакетов. Преобразует JSON в команды для бизнес-логики.
@@ -39,12 +40,34 @@ public class PacketHandler {
     }
 
     private void handleAuth(ClientSession session, NetworkMessageDTO message) {
-        // Предполагаем, что в payload приходят данные в формате "username:password"
-        String[] credentials = message.payload().split(":");
-        if (credentials.length == 2) {
-            gameSessionService.authenticate(session, credentials[0], credentials[1]);
-        } else {
-            sendError(session, "AUTH_ERROR", "Неверный формат учетных данных");
+        try {
+            // Парсим JSON из payload
+            Map<String, String> credentials = objectMapper.readValue(message.payload(),
+                    new com.fasterxml.jackson.core.type.TypeReference<>() {});
+
+            String username = credentials.get("username");
+            String password = credentials.get("password");
+
+            // Вызов вашего сервиса авторизации
+            gameSessionService.authenticate(session, username, password);
+
+            // Получаем ID после успешной аутентификации (предположим, сервис сохранил его в сессию)
+            Long userId = session.getUserId();
+
+            if (userId != null) {
+                // Формируем JSON-тело ответа
+                String userJson = String.format("{\"userId\":%d,\"username\":\"%s\"}", userId, username);
+
+                // Формируем финальную строку ПРЕФИКС|JSON
+                String responsePayload = "AUTH_SUCCESS|" + userJson;
+
+                session.sendMessage(new NetworkMessageDTO(MessageType.AUTH, responsePayload, "SERVER"));
+            } else {
+                session.sendMessage(new NetworkMessageDTO(MessageType.AUTH, "AUTH_ERROR|Неверный логин или пароль", "SERVER"));
+            }
+
+        } catch (Exception e) {
+            session.sendMessage(new NetworkMessageDTO(MessageType.AUTH, "AUTH_ERROR|Ошибка сервера: " + e.getMessage(), "SERVER"));
         }
     }
 
