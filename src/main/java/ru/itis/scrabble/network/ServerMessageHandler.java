@@ -38,7 +38,8 @@ public class ServerMessageHandler {
                 MessageType type = message.type();
 
                 switch (type) {
-                    case AUTH -> forwardToController("login", message);
+                    case AUTH, AUTH_ERROR -> forwardToController("login", message);
+                    case AUTH_SUCCESS -> forwardToController("main-menu", message);
                     case TURN_COMMIT, TILE_PREVIEW, SYNC_STATE, GAME_EVENT, HEARTBEAT -> forwardToController("game", message);
                     case ERROR -> navigationManager.showError("Ошибка сервера", message.payload());
                     default -> broadcastMessage(message);

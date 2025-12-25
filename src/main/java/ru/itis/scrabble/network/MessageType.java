@@ -3,6 +3,8 @@ package ru.itis.scrabble.network;
 public enum MessageType {
     // Core types
     AUTH,
+    AUTH_SUCCESS,
+    AUTH_ERROR,
     TILE_PREVIEW,
     TURN_COMMIT,
     HEARTBEAT,

@@ -69,40 +69,31 @@ public class LoginController extends BaseController {
     public void handleNetworkMessage(NetworkMessageDTO message) {
         Platform.runLater(() -> {
             try {
-                String raw = message.payload() != null ? message.payload() : "";
-
-                String prefix;
-                String json;
-
-                int sep = raw.indexOf('|');
-                if (sep > 0) {
-                    prefix = raw.substring(0, sep);
-                    json = raw.substring(sep + 1);
-                } else {
-                    prefix = message.type() != null ? message.type().name() : "";
-                    json = raw;
-                }
-
-                if ("AUTH_SUCCESS".equals(prefix)) {
+                // Теперь проверяем через Enum MessageType
+                if (message.type() == MessageType.AUTH_SUCCESS) {
+                    // Извлекаем JSON из payload (теперь это строка)
+                    String json = message.payload();
                     Map<String, Object> response = objectMapper.readValue(json, Map.class);
+
+                    // Безопасное извлечение ID
                     Long userId = ((Number) response.get("userId")).longValue();
                     String username = (String) response.get("username");
+
                     navigator.setCurrentUser(userId, username);
                     navigator.navigate(View.MAIN_MENU);
 
-                } else if ("AUTH_ERROR".equals(prefix)) {
-                    String error = json != null ? json : "";
-                    showError("Ошибка авторизации: " + error);
+                } else if (message.type() == MessageType.AUTH_ERROR) {
+                    showError("Ошибка: " + message.payload());
                     loginButton.setDisable(false);
 
-                } else if ("ERROR".equals(prefix) || MessageType.ERROR.name().equals(prefix)) {
-                    String error = json != null ? json : "";
-                    showError("Ошибка: " + error);
+                } else if (message.type() == MessageType.ERROR) {
+                    showError("Системная ошибка: " + message.payload());
                     loginButton.setDisable(false);
                 }
+
             } catch (Exception e) {
                 e.printStackTrace();
-                showError("Ошибка обработки ответа сервера");
+                showError("Ошибка обработки данных: " + e.getMessage());
                 loginButton.setDisable(false);
             }
         });
