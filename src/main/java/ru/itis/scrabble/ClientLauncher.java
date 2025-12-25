@@ -5,6 +5,7 @@ import javafx.stage.Stage;
 import ru.itis.scrabble.navigation.NavigationManager;
 import ru.itis.scrabble.network.NetworkClient;
 import ru.itis.scrabble.navigation.View;
+import ru.itis.scrabble.network.ServerMessageHandler;
 
 public class ClientLauncher extends Application {
 
@@ -24,12 +25,12 @@ public class ClientLauncher extends Application {
             // 2. Инициализируем сетевой клиент
             String serverHost = "localhost"; // Можно вынести в конфиг или аргументы командной строки
             int serverPort = 8080;
+            ServerMessageHandler messageHandler = new ServerMessageHandler();
 
             networkClient = new NetworkClient();
+            networkClient.setMessageHandler(messageHandler::handleMessage);
 
-            // 3. Инициализируем менеджер навигации
-            navigationManager = new NavigationManager(primaryStage);
-            navigationManager.setNetworkService(networkClient);
+            navigationManager = new NavigationManager(networkClient, primaryStage);
 
             // 4. Подключаемся к серверу (асинхронно, чтобы не блокировать UI)
             connectToServerAsync(serverHost, serverPort);

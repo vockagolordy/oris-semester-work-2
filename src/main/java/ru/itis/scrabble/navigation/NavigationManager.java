@@ -17,17 +17,11 @@ public class NavigationManager {
     private Long currentUserId;
     private String currentUsername;
 
-    public NavigationManager(Stage stage) {
+    public NavigationManager(NetworkClient networkService, Stage stage) {
+        this.networkService = networkService;
         this.stage = stage;
         this.messageHandler = new ServerMessageHandler();
         this.messageHandler.setNavigationManager(this);
-    }
-
-    public void setNetworkService(NetworkClient networkService) {
-        this.networkService = networkService;
-        if (networkService != null) {
-            networkService.setMessageHandler(messageHandler::handleMessage);
-        }
     }
 
     public void setCurrentUser(Long userId, String username) {

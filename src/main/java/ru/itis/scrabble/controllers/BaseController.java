@@ -31,9 +31,6 @@ public abstract class BaseController implements Initializable {
 
     public void setNetworkService(NetworkClient networkService) {
         this.networkService = networkService;
-        if (networkService != null) {
-            networkService.setMessageHandler(this::handleNetworkMessage);
-        }
     }
 
     public void setCurrentUser(Long userId, String username) {
