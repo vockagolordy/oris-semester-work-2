@@ -17,9 +17,9 @@
     </Label>
 
     <VBox alignment="CENTER" spacing="15">
-        <TextField fx:id="usernameField" prefWidth="250" promptText="Имя пользователя"/>
-        <PasswordField fx:id="passwordField" prefWidth="250" promptText="Пароль"/>
-        <PasswordField fx:id="passwordField1" layoutX="10.0" layoutY="50.0" prefWidth="250"
+        <TextField fx:id="usernameField" maxWidth="250.0" prefWidth="250" promptText="Имя пользователя"/>
+        <PasswordField fx:id="passwordField" maxWidth="250.0" prefWidth="250" promptText="Пароль"/>
+        <PasswordField fx:id="passwordField1" layoutX="10.0" layoutY="50.0" maxWidth="250.0" prefWidth="250"
                        promptText="Повторите пароль"/>
     </VBox>
 
